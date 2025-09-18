@@ -3,6 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import  get_user_model, authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from .models import *
 
 User = get_user_model()
 
@@ -78,3 +79,55 @@ def finishsignup_view(request):
         return redirect('login')
 
     return render(request, 'finishsignup.html')
+
+# ========== CAMPAIGN ==========
+
+@login_required
+def campaign_list(request):
+    campaigns = Campaign.objects.all()
+    return render(request, 'campaign_list.html', {'campaigns': campaigns})
+
+@login_required
+def campaign_detail(request, campaign_id):
+    campaign = get_object_or_404(Campaign, id=campaign_id)
+    return render(request, 'campaign_detail.html', {'campaign': campaign})
+
+
+# ========== BOOKMARK ==========
+
+@login_required
+def add_bookmark(request, campaign_id):
+    campaign = get_object_or_404(Campaign, id=campaign_id)
+
+    # hanya KOL yg bisa bookmark
+    if not request.user.is_kol:
+        return HttpResponseForbidden("Hanya KOL yang bisa membuat bookmark.")
+
+    bookmark, created = Bookmark.objects.get_or_create(
+        kol=request.user,
+        campaign=campaign
+    )
+    if created:
+        messages.success(request, f"Campaign '{campaign.judul}' berhasil ditambahkan ke bookmark!")
+    else:
+        messages.info(request, f"Campaign '{campaign.judul}' sudah ada di bookmark Anda.")
+
+    return redirect('campaign_detail', campaign_id=campaign.id)
+
+@login_required
+def remove_bookmark(request, campaign_id):
+    campaign = get_object_or_404(Campaign, id=campaign_id)
+
+    bookmark = Bookmark.objects.filter(kol=request.user, campaign=campaign).first()
+    if bookmark:
+        bookmark.delete()
+        messages.success(request, f"Campaign '{campaign.judul}' berhasil dihapus dari bookmark.")
+    else:
+        messages.error(request, "Bookmark tidak ditemukan.")
+
+    return redirect('campaign_detail', campaign_id=campaign.id)
+
+@login_required
+def my_bookmarks(request):
+    bookmarks = Bookmark.objects.filter(kol=request.user)
+    return render(request, 'my_bookmarks.html', {'bookmarks': bookmarks})

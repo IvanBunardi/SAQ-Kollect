@@ -20,10 +20,14 @@ export default function Login() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Login data:', formData);
-    alert('Login successful! (This is a demo)');
-  };
+  e.preventDefault();
+  console.log('Login data:', formData);
+  
+  alert('Login successful! (This is a demo)');
+  
+  // ✅ Direct ke halaman feeds
+  router.push('/feeds');
+};
 
   return (
     <div style={styles.container}>

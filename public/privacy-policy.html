@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kollect - Privacy Policy</title>
+  <style>
+/* body setup */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #fff;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+/* background circles - hanya di kanan */
+.circles {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.circle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 1;
+  animation: float 15s infinite ease-in-out;
+}
+
+/* warna yang persis sama dengan referensi */
+.pink { background: #e357a3; }
+.lightpink { background: #f4a3c8; }
+.blue { background: #4371f0; }
+.darkblue { background: #2952cc; }
+.lightblue { background: #a5c8f0; }
+.verylightblue { background: #c8ddf0; }
+.cream { background: #f0f0f0; }
+
+/* ukuran sesuai referensi */
+.huge { width: 350px; height: 350px; }
+.extrabig { width: 280px; height: 280px; }
+.big { width: 200px; height: 200px; }
+.medium { width: 140px; height: 140px; }
+.small { width: 90px; height: 90px; }
+.tiny { width: 60px; height: 60px; }
+.mini { width: 40px; height: 40px; }
+
+/* animasi bubble yang lebih halus */
+@keyframes float {
+  0%   { transform: translateY(0px) translateX(0px) rotate(0deg); }
+  33%  { transform: translateY(-20px) translateX(10px) rotate(5deg); }
+  66%  { transform: translateY(15px) translateX(-10px) rotate(-3deg); }
+  100% { transform: translateY(0px) translateX(0px) rotate(0deg); }
+}
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, rgba(225, 240, 249, 0.95), rgba(248, 212, 234, 0.95));
+  backdrop-filter: blur(10px);
+  height: 80px;              /* Tinggi fix */
+  display: flex;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 30 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* 👈 ini bikin logo nempel ke kiri */
+  padding: 0 40px;
+}
+
+.logo {
+  max-height: 90px;   
+  width: auto;        
+  margin-right: 9000px;
+}
+
+.logo-text {
+  display: flex;
+  align-items: center;
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+}
+
+.logo-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #4371f0, #e357a3);
+  border-radius: 50%;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.logo-icon::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+}
+
+/* Main content */
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 60px 40px;
+  position: relative;
+  z-index: 10;
+  transform: translateX(-80px); /* geser ke kiri 80px */
+}
+
+.title-section {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.header-logo {
+  height: 125px; 
+  width: auto;
+}
+
+.title-section h1 {
+  font-size: 48px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 20px 0;
+  background: linear-gradient(135deg, #4371f0, #e357a3);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.last-updated {
+  font-style: italic;
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 40px;
+}
+
+.intro {
+  font-size: 16px;
+  color: #555;
+  line-height: 1.8;
+  margin-bottom: 40px;
+}
+
+/* Content sections */
+.content-section {
+  margin-bottom: 40px;
+}
+
+.content-section h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin: 30px 0 15px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e357a3;
+  display: inline-block;
+}
+
+.content-section p {
+  color: #555;
+  margin-bottom: 15px;
+  font-size: 15px;
+}
+
+.content-section ul {
+  margin: 15px 0;
+  padding-left: 0;
+}
+
+.content-section li {
+  color: #555;
+  margin-bottom: 8px;
+  padding-left: 20px;
+  position: relative;
+  font-size: 15px;
+}
+
+.content-section li::before {
+  content: '•';
+  color: #e357a3;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
+.content-section ul ul {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.content-section ul ul li {
+  padding-left: 30px;
+  font-size: 14px;
+}
+
+.content-section ul ul li::before {
+  content: '◦';
+  left: 10px;
+}
+
+/* Contact section styling */
+.contact-info {
+  background: linear-gradient(135deg, rgba(225, 240, 249, 0.7), rgba(248, 212, 234, 0.7));
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 25px;
+  margin-top: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.contact-info p {
+  margin: 8px 0;
+}
+
+.contact-email {
+  color: #e357a3;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.contact-email:hover {
+  text-decoration: underline;
+}
+  </style>
+</head>
+<body>
+  <!-- background circles - hanya di kanan -->
+  <div class="circles">
+    <!-- Pojok kanan atas -->
+    <div class="circle blue huge" style="top: -160px; right: -160px; animation-delay: 2s;"></div>
+    <div class="circle lightpink extrabig" style="top: -100px; right: 140px; animation-delay: 4s;"></div>
+    <div class="circle lightblue big" style="top: 60px; right: 120px; animation-delay: 1s;"></div>
+    <div class="circle verylightblue medium" style="top: 20px; right: 80px; animation-delay: 5s;"></div>
+    <div class="circle pink small" style="top: 140px; right: 40px; animation-delay: 3s;"></div>
+    
+    <!-- Kanan tengah -->
+    <div class="circle blue medium" style="top: 280px; right: 30px; animation-delay: 6s;"></div>
+    <div class="circle lightblue small" style="top: 350px; right: 120px; animation-delay: 2.5s;"></div>
+    <div class="circle pink tiny" style="top: 400px; right: 80px; animation-delay: 4.5s;"></div>
+    <div class="circle lightpink small" style="top: 450px; right: 180px; animation-delay: 7s;"></div>
+    <div class="circle verylightblue medium" style="top: 500px; right: 50px; animation-delay: 8s;"></div>
+    
+    <!-- Kanan bawah -->
+    <div class="circle blue huge" style="top: 600px; right: -120px; animation-delay: 3s;"></div>
+    <div class="circle pink extrabig" style="top: 700px; right: 160px; animation-delay: 1s;"></div>
+    <div class="circle lightblue big" style="top: 800px; right: 80px; animation-delay: 5s;"></div>
+    <div class="circle verylightblue medium" style="top: 900px; right: 200px; animation-delay: 2s;"></div>
+    <div class="circle lightpink small" style="top: 1000px; right: 20px; animation-delay: 6s;"></div>
+    <div class="circle darkblue tiny" style="top: 1100px; right: 120px; animation-delay: 4s;"></div>
+    
+    <!-- Additional bubbles for continuous scroll -->
+    <div class="circle lightpink tiny" style="top: 1200px; right: 160px; animation-delay: 8.5s;"></div>
+    <div class="circle verylightblue small" style="top: 1300px; right: 90px; animation-delay: 7.5s;"></div>
+    <div class="circle blue mini" style="top: 1400px; right: 200px; animation-delay: 9.5s;"></div>
+    <div class="circle lightblue tiny" style="top: 1500px; right: 60px; animation-delay: 6s;"></div>
+    <div class="circle pink mini" style="top: 1600px; right: 140px; animation-delay: 10s;"></div>
+    
+    <!-- More bubbles -->
+    <div class="circle cream mini" style="top: 1700px; right: 180px; animation-delay: 11s;"></div>
+    <div class="circle lightpink mini" style="top: 1800px; right: 70px; animation-delay: 12s;"></div>
+    <div class="circle verylightblue mini" style="top: 1900px; right: 150px; animation-delay: 13s;"></div>
+    <div class="circle blue mini" style="top: 2000px; right: 100px; animation-delay: 14s;"></div>
+    
+    <!-- Final bubbles -->
+    <div class="circle pink mini" style="top: 2100px; right: 190px; animation-delay: 15s;"></div>
+    <div class="circle lightblue mini" style="top: 2200px; right: 50px; animation-delay: 16s;"></div>
+    <div class="circle blue mini" style="top: 2300px; right: 130px; animation-delay: 17s;"></div>
+    <div class="circle verylightblue mini" style="top: 2400px; right: 170px; animation-delay: 18s;"></div>
+  </div>
+
+  <!-- Header -->
+<div class="header">
+  <div class="header-content">
+    <img src="/assets/logo-full.png" alt="Kollect Logo" class="logo">
+  </div>
+</div>
+
+  <!-- Main content -->
+  <div class="container">
+    <div class="title-section">
+      <h1>Privacy Policy</h1>
+      <div class="last-updated">Last updated: September 18, 2025</div>
+      
+      <div class="intro">
+        <p>This website ("Platform") serves as a hub connecting Brands and Content Creators (KOLs) for collaboration campaigns. We respect your privacy and are committed to protecting the personal data you share with us.</p>
+        <p>This Privacy Policy explains how we collect, use, store, and safeguard your information. By using this Platform, you agree to the terms of this policy.</p>
+      </div>
+    </div>
+
+    <div class="content-section">
+      <h2>1. Information We Collect</h2>
+      <p>We may collect the following types of information:</p>
+      <ul>
+        <li><strong>Account Information</strong>
+          <ul>
+            <li>Name, email address, phone number, password, and login details.</li>
+          </ul>
+        </li>
+        <li><strong>Profile Information</strong>
+          <ul>
+            <li>For KOLs: portfolio, niche, number of followers, engagement rate, rates (optional), location.</li>
+            <li>For Brands: company name, industry, campaign budget, and campaign requirements.</li>
+          </ul>
+        </li>
+        <li><strong>Campaign Information</strong>
+          <ul>
+            <li>Campaign briefs, deliverables, budget, progress status, and final results.</li>
+          </ul>
+        </li>
+        <li><strong>Platform Interactions</strong>
+          <ul>
+            <li>Campaign applications, messages/chats, saved/bookmarked campaigns, dashboard activity.</li>
+          </ul>
+        </li>
+        <li><strong>Technical Data</strong>
+          <ul>
+            <li>IP address, device type, browser type, activity logs, and cookies or similar technologies.</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+
+    <div class="content-section">
+      <h2>2. How We Use Your Information</h2>
+      <p>Your information may be used to:</p>
+      <ul>
+        <li>Enable communication between Brands and KOLs (campaigns, chats/DMs, invitations).</li>
+        <li>Provide search and filter features for finding KOLs.</li>
+        <li>Send notifications about new campaigns based on user preferences.</li>
+        <li>Display insights and analytics on campaign performance.</li>
+        <li>Verify accounts and ensure platform security.</li>
+        <li>Send updates about the platform, success stories, collaboration tips, or featured KOLs.</li>
+        <li>Comply with legal obligations and audits.</li>
+      </ul>
+    </div>
+
+    <div class="content-section">
+      <h2>3. Sharing of Information</h2>
+      <p>We do not sell personal data to third parties. Information may only be shared in the following cases:</p>
+      <ul>
+        <li><strong>Between Users:</strong> Brands may view KOL profiles; KOLs may view available campaign details.</li>
+        <li><strong>Service Providers:</strong> Third-party partners supporting operations (hosting, payments, analytics), bound by confidentiality agreements.</li>
+        <li><strong>Legal Compliance:</strong> When required by law, regulation, or legal process.</li>
+      </ul>
+    </div>
+
+    <div class="content-section">
+      <h2>4. Data Storage & Security</h2>
+      <ul>
+        <li>Data is stored on secure servers with technical and administrative safeguards.</li>
+        <li>Account access is protected with passwords/OTP.</li>
+        <li>Encryption and industry-standard security practices are applied to prevent unauthorized access.</li>
+        <li>Data is retained only as long as necessary to provide services.</li>
+      </ul>
+    </div>
+
+    <div class="content-section">
+      <h2>5. User Rights</h2>
+      <p>You have the right to:</p>
+      <ul>
+        <li>Access, update, or delete your account information.</li>
+        <li>Opt in or out of certain notifications.</li>
+        <li>Request a copy of your personal data.</li>
+        <li>Withdraw consent for data usage (with the understanding that this may limit access to some features).</li>
+      </ul>
+    </div>
+
+    <div class="content-section">
+      <h2>6. Cookies & Similar Technologies</h2>
+      <p>We use cookies to improve user experience, such as saving preferences, analyzing traffic, and personalizing content. You can disable cookies in your browser settings.</p>
+    </div>
+
+    <div class="content-section">
+      <h2>7. Children's Privacy</h2>
+      <p>This Platform is not intended for individuals under the age of 18. If you are under 18, please do not use this service without parental/guardian supervision.</p>
+    </div>
+
+    <div class="content-section">
+      <h2>8. Changes to This Policy</h2>
+      <p>We may update this Privacy Policy from time to time. Significant changes will be communicated via email or in-platform notifications.</p>
+    </div>
+
+    <div class="content-section">
+      <h2>9. Contact Us</h2>
+      <div class="contact-info">
+        <p>If you have questions about this Privacy Policy, please contact us at:</p>
+        <p><strong>📧 <a href="mailto:support@kollect.com" class="contact-email">[support email]</a></strong></p>
+        <p><strong>🏢 [company address, optional]</strong></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

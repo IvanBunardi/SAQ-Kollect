@@ -14,7 +14,7 @@ export default function Home() {
     // Splash selesai, redirect ke signup (3.5 detik)
     setTimeout(() => {
       setShowSplash(false);
-      router.push('/signup-kol');
+      router.push('/login');
     }, 3500);
   }, [router]);
 

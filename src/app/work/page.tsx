@@ -13,27 +13,40 @@ export default function WorkPage() {
       company: 'MJ Toys',
       title: 'Product Launch Campaign',
       progress: 60,
-      budget: '$1,000',
+      budget: '$ 1,000',
       engagement: '50 K',
       deadline: '2025 - 10 - 20',
-      deliverables: 2,
+      deliverables: '2',
       stories: 2,
       reels: 3,
       status: 'Active',
-      statusColor: '#4caf50'
+      statusColor: '#90ee90'
     },
     {
       company: 'MJ Toys',
       title: 'Product Launch Campaign',
       progress: 100,
-      budget: '$1,000',
+      budget: '$ 1,000',
       engagement: '50 K',
       deadline: '2025 - 10 - 20',
-      deliverables: 2,
+      deliverables: '2',
       stories: 2,
       reels: 3,
       status: 'Done',
-      statusColor: '#2196f3'
+      statusColor: '#b3d9ff'
+    },
+    {
+      company: 'MJ Toys',
+      title: 'Product Launch Campaign',
+      progress: 100,
+      budget: '$ 1,000',
+      engagement: '50 K',
+      deadline: '2025 - 10 - 20',
+      deliverables: '2',
+      stories: 2,
+      reels: 3,
+      status: 'In Check',
+      statusColor: '#f4c2f0'
     }
   ];
 
@@ -152,38 +165,47 @@ export default function WorkPage() {
             <h1 style={styles.userName}>Felix Tan</h1>
           </div>
 
-          {/* Stats Cards */}
-          <div style={styles.statsGrid}>
-            <div style={{...styles.statCard, background: 'linear-gradient(135deg, #e8eaf6, #f5f7fa)'}}>
-              <div style={styles.statIcon}>
-                <div style={{...styles.iconCircle, background: '#e8b4d4'}}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
-                    <path d="M9 11l3 3L22 4"/>
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          {/* Stats Cards - Vertical Layout */}
+          <div style={styles.statsContainer}>
+            <div style={{...styles.statCard, background: 'linear-gradient(135deg, #e8eaf6, #f0f2f5)'}}>
+              <div style={styles.statContent}>
+                <div>
+                  <p style={styles.statLabel}>Active Project</p>
+                  <h2 style={styles.statValue}>2</h2>
+                </div>
+                <div style={{...styles.statIconBox, background: '#f4c2f0'}}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8b5a8a" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="9" y1="9" x2="15" y2="9"/>
+                    <line x1="9" y1="15" x2="15" y2="15"/>
                   </svg>
                 </div>
               </div>
-              <h2 style={styles.statValue}>2</h2>
-              <p style={styles.statLabel}>Active Project</p>
             </div>
 
-            <div style={{...styles.statCard, background: 'linear-gradient(135deg, #e8f5e9, #f5f7fa)'}}>
-              <div style={styles.statIcon}>
-                <div style={{...styles.iconCircle, background: '#b4e8cc'}}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
-                    <line x1="12" y1="1" x2="12" y2="23"/>
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            <div style={{...styles.statCard, background: 'linear-gradient(135deg, #e8f5e9, #f0f2f5)'}}>
+              <div style={styles.statContent}>
+                <div>
+                  <p style={styles.statLabel}>Total Earnings</p>
+                  <h2 style={styles.statValue}>$ 10 K</h2>
+                </div>
+                <div style={{...styles.statIconBox, background: '#c8e6c9'}}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4a7c4a" strokeWidth="2">
+                    <rect x="2" y="5" width="20" height="14" rx="2"/>
+                    <line x1="2" y1="10" x2="22" y2="10"/>
                   </svg>
                 </div>
               </div>
-              <h2 style={styles.statValue}>$ 10 K</h2>
-              <p style={styles.statLabel}>Total Earnings</p>
             </div>
 
-            <div style={{...styles.statCard, background: 'linear-gradient(135deg, #e3f2fd, #f5f7fa)'}}>
-              <div style={styles.statIcon}>
-                <div style={{...styles.iconCircle, background: '#a5c8f0'}}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
+            <div style={{...styles.statCard, background: 'linear-gradient(135deg, #e3f2fd, #f0f2f5)'}}>
+              <div style={styles.statContent}>
+                <div>
+                  <p style={styles.statLabel}>Avg. Engagement</p>
+                  <h2 style={styles.statValue}>10.5 K</h2>
+                </div>
+                <div style={{...styles.statIconBox, background: '#b3d9ff'}}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4a6fa5" strokeWidth="2">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                     <circle cx="9" cy="7" r="4"/>
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
@@ -191,21 +213,23 @@ export default function WorkPage() {
                   </svg>
                 </div>
               </div>
-              <h2 style={styles.statValue}>10.5 K</h2>
-              <p style={styles.statLabel}>Avg. Engagement</p>
             </div>
 
-            <div style={{...styles.statCard, background: 'linear-gradient(135deg, #f3e5f5, #f5f7fa)'}}>
-              <div style={styles.statIcon}>
-                <div style={{...styles.iconCircle, background: '#e8b4d4'}}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                    <polyline points="9 22 9 12 15 12 15 22"/>
+            <div style={{...styles.statCard, background: 'linear-gradient(135deg, #f3e5f5, #f0f2f5)'}}>
+              <div style={styles.statContent}>
+                <div>
+                  <p style={styles.statLabel}>This Month</p>
+                  <h2 style={styles.statValue}>5</h2>
+                </div>
+                <div style={{...styles.statIconBox, background: '#f4c2f0'}}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8b5a8a" strokeWidth="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
                   </svg>
                 </div>
               </div>
-              <h2 style={styles.statValue}>5</h2>
-              <p style={styles.statLabel}>This Month</p>
             </div>
           </div>
 
@@ -232,15 +256,15 @@ export default function WorkPage() {
                 <div style={styles.projectHeader}>
                   <div style={styles.projectLeft}>
                     <div style={styles.projectAvatar}>
-                      <Image src="/assets/logo-icon.png" alt={project.company} width={50} height={50} style={{borderRadius: '50%', objectFit: 'cover'}} />
+                      <Image src="/assets/logo-icon.png" alt={project.company} width={45} height={45} style={{borderRadius: '50%', objectFit: 'cover'}} />
                     </div>
-                    <div>
+                    <div style={styles.projectInfo}>
                       <h3 style={styles.projectCompany}>{project.company}</h3>
-                      <div style={styles.verticalLine}></div>
+                      <div style={styles.divider}>|</div>
                       <h4 style={styles.projectTitle}>{project.title}</h4>
                     </div>
                   </div>
-                  <div style={{...styles.statusBadge, background: project.statusColor}}>
+                  <div style={{...styles.statusBadge, background: project.statusColor, color: '#333'}}>
                     {project.status}
                   </div>
                 </div>
@@ -316,7 +340,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   sidebar: {
     width: '260px',
-    background: '#fff',
+    background: '#fafbfc',
     position: 'fixed',
     height: '100vh',
     left: 0,
@@ -325,7 +349,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '30px 20px',
     display: 'flex',
     flexDirection: 'column',
-    boxShadow: '2px 0 10px rgba(0,0,0,0.05)',
+    borderRight: '1px solid #e8e8e8',
   },
   logo: {
     marginBottom: '50px',
@@ -347,6 +371,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     textDecoration: 'none',
     fontSize: '15px',
     fontWeight: '500',
+    background: '#e8eaed',
     transition: 'all 0.2s ease',
     cursor: 'pointer',
   },
@@ -372,14 +397,14 @@ const styles: { [key: string]: React.CSSProperties } = {
   mainContent: {
     flex: 1,
     marginLeft: '260px',
-    padding: '40px 60px',
+    padding: '30px 50px',
     zIndex: 10,
   },
   userHeader: {
     display: 'flex',
     alignItems: 'center',
     gap: '18px',
-    marginBottom: '35px',
+    marginBottom: '30px',
   },
   userAvatar: {
     width: '60px',
@@ -390,58 +415,60 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   userName: {
     margin: 0,
-    fontSize: '28px',
+    fontSize: '26px',
     fontWeight: '700',
     color: '#111',
   },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: '20px',
-    marginBottom: '35px',
+  
+  // NEW: Vertical Stats Layout
+  statsContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px',
+    marginBottom: '30px',
   },
   statCard: {
-    borderRadius: '20px',
-    padding: '25px',
-    position: 'relative',
+    borderRadius: '16px',
+    padding: '20px 25px',
   },
-  statIcon: {
+  statContent: {
     display: 'flex',
-    justifyContent: 'flex-end',
-    marginBottom: '15px',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  iconCircle: {
-    width: '55px',
-    height: '55px',
-    borderRadius: '50%',
+  statLabel: {
+    margin: 0,
+    fontSize: '15px',
+    color: '#111',
+    fontWeight: '600',
+    marginBottom: '8px',
+  },
+  statValue: {
+    margin: 0,
+    fontSize: '36px',
+    fontWeight: '700',
+    color: '#111',
+  },
+  statIconBox: {
+    width: '65px',
+    height: '65px',
+    borderRadius: '12px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statValue: {
-    margin: 0,
-    fontSize: '32px',
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: '5px',
-  },
-  statLabel: {
-    margin: 0,
-    fontSize: '14px',
-    color: '#666',
-    fontWeight: '500',
-  },
+  
   filterButtons: {
     display: 'flex',
     gap: '12px',
     marginBottom: '25px',
   },
   filterBtn: {
-    padding: '10px 22px',
+    padding: '10px 24px',
     border: 'none',
     borderRadius: '10px',
     fontSize: '14px',
-    fontWeight: '500',
+    fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s',
   },
@@ -450,84 +477,87 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: 'white',
   },
   filterBtnInactive: {
-    background: '#f0f2f5',
+    background: '#e8eaed',
     color: '#666',
   },
   projectsList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '20px',
+    gap: '18px',
   },
   projectCard: {
     background: '#fff',
-    border: '1px solid #e8e8e8',
-    borderRadius: '20px',
-    padding: '28px',
+    border: '1px solid #e0e0e0',
+    borderRadius: '16px',
+    padding: '24px',
   },
   projectHeader: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: '20px',
+    marginBottom: '18px',
   },
   projectLeft: {
     display: 'flex',
     alignItems: 'center',
-    gap: '16px',
+    gap: '14px',
   },
   projectAvatar: {
-    width: '50px',
-    height: '50px',
+    width: '45px',
+    height: '45px',
     borderRadius: '50%',
     overflow: 'hidden',
     flexShrink: 0,
   },
-  verticalLine: {
-    width: '2px',
-    height: '20px',
-    background: '#e0e0e0',
-    margin: '0 0',
+  projectInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
   },
   projectCompany: {
     margin: 0,
-    fontSize: '16px',
-    fontWeight: '600',
+    fontSize: '15px',
+    fontWeight: '700',
     color: '#111',
+  },
+  divider: {
+    fontSize: '15px',
+    color: '#ccc',
+    fontWeight: '300',
   },
   projectTitle: {
     margin: 0,
     fontSize: '15px',
-    fontWeight: '500',
-    color: '#666',
+    fontWeight: '400',
+    color: '#111',
   },
   statusBadge: {
-    padding: '8px 18px',
-    borderRadius: '20px',
-    fontSize: '13px',
-    fontWeight: '500',
-    color: 'white',
+    padding: '6px 16px',
+    borderRadius: '16px',
+    fontSize: '12px',
+    fontWeight: '600',
   },
   progressSection: {
-    marginBottom: '20px',
+    marginBottom: '18px',
   },
   progressHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    marginBottom: '10px',
+    marginBottom: '8px',
   },
   progressLabel: {
-    fontSize: '14px',
-    color: '#666',
-    fontWeight: '500',
-  },
-  progressValue: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: '#111',
     fontWeight: '600',
   },
+  progressValue: {
+    fontSize: '13px',
+    color: '#111',
+    fontWeight: '700',
+  },
   progressBar: {
     width: '100%',
-    height: '8px',
+    height: '10px',
     background: '#e8e8e8',
     borderRadius: '10px',
     overflow: 'hidden',
@@ -541,8 +571,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   projectDetails: {
     display: 'grid',
     gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: '20px',
-    marginBottom: '20px',
+    gap: '15px',
+    marginBottom: '16px',
   },
   detailColumn: {
     display: 'flex',
@@ -550,25 +580,26 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   detailLabel: {
     margin: 0,
-    fontSize: '13px',
-    color: '#666',
-    marginBottom: '6px',
+    fontSize: '12px',
+    color: '#111',
+    marginBottom: '4px',
+    fontWeight: '600',
   },
   detailValue: {
     margin: 0,
-    fontSize: '15px',
-    fontWeight: '600',
+    fontSize: '13px',
+    fontWeight: '700',
     color: '#111',
   },
   projectTags: {
     display: 'flex',
-    gap: '10px',
+    gap: '8px',
   },
   tag: {
-    padding: '6px 14px',
-    background: '#f0f2f5',
-    borderRadius: '8px',
-    fontSize: '13px',
+    padding: '6px 12px',
+    background: '#e8eaed',
+    borderRadius: '6px',
+    fontSize: '12px',
     color: '#666',
     fontWeight: '500',
   },

@@ -8,12 +8,27 @@ export default function MessagesPage() {
   const [activeNav, setActiveNav] = useState('messages');
   const [activeTab, setActiveTab] = useState('chats');
   const [selectedChat, setSelectedChat] = useState('Felix Tan');
+  const [showAcceptedModal, setShowAcceptedModal] = useState(false);
 
   const chatList = Array(12).fill({
     name: 'Felix Tan',
     category: 'Tech',
     followers: '143K Followers'
   });
+
+  const handleAccept = () => {
+    setShowAcceptedModal(true);
+  };
+
+  const handleDecline = () => {
+    // Handle decline logic
+    console.log('Declined');
+  };
+
+  const handleChatFromModal = () => {
+    setShowAcceptedModal(false);
+    setActiveTab('chats');
+  };
 
   return (
     <>
@@ -118,7 +133,7 @@ export default function MessagesPage() {
         {/* Messages Panel */}
         <div style={styles.messagesPanel}>
           <div style={styles.messagesPanelHeader}>
-            <h2 style={styles.username}>owenc.s</h2>
+            <h2 style={styles.username}>MJ TOYS</h2>
             <div style={styles.headerIcon}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -136,10 +151,16 @@ export default function MessagesPage() {
           </div>
 
           <div style={styles.tabsContainer}>
-            <button style={{ ...styles.tab, ...(activeTab === 'chats' && styles.tabActive) }} onClick={() => setActiveTab('chats')}>
+            <button 
+              style={{ ...styles.tab, ...(activeTab === 'chats' && styles.tabActive), ...(activeTab !== 'chats' && styles.tabInactive) }} 
+              onClick={() => setActiveTab('chats')}
+            >
               Chats
             </button>
-            <button style={{ ...styles.tab, ...(activeTab === 'jobs' && styles.tabInactive) }} onClick={() => setActiveTab('jobs')}>
+            <button 
+              style={{ ...styles.tab, ...(activeTab === 'jobs' && styles.tabActive), ...(activeTab !== 'jobs' && styles.tabInactive) }} 
+              onClick={() => setActiveTab('jobs')}
+            >
               Jobs
             </button>
           </div>
@@ -163,28 +184,158 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        {/* Chat Content */}
+        {/* Chat Content / Jobs Form */}
         <div style={styles.chatContent}>
-          <div style={styles.chatHeader}>
-            <div style={styles.chatHeaderLeft}>
-              <div style={styles.chatHeaderAvatar}>
-                <Image src="/assets/fotomes.png" alt={selectedChat} width={50} height={50} style={{ borderRadius: '50%', objectFit: 'cover' }} />
+          {activeTab === 'chats' ? (
+            <>
+              <div style={styles.chatHeader}>
+                <div style={styles.chatHeaderLeft}>
+                  <div style={styles.chatHeaderAvatar}>
+                    <Image src="/assets/fotomes.png" alt={selectedChat} width={50} height={50} style={{ borderRadius: '50%', objectFit: 'cover' }} />
+                  </div>
+                  <h2 style={styles.chatHeaderName}>{selectedChat}</h2>
+                </div>
               </div>
-              <h2 style={styles.chatHeaderName}>{selectedChat}</h2>
-            </div>
-          </div>
 
-          <div style={styles.emptyChat}></div>
+              <div style={styles.emptyChat}></div>
 
-          <div style={styles.messageInputContainer}>
-            <div style={styles.messageInputBar}></div>
-          </div>
+              <div style={styles.messageInputContainer}>
+                <div style={styles.messageInputBar}></div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Jobs Form Header */}
+              <div style={styles.jobsHeader}>
+                <div style={styles.jobsHeaderLeft}>
+                  <div style={styles.jobsAvatar}>
+                    <Image src="/assets/fotomes.png" alt="Felix Tan" width={50} height={50} style={{ borderRadius: '50%', objectFit: 'cover' }} />
+                  </div>
+                  <h2 style={styles.jobsHeaderName}>Felix Tan</h2>
+                </div>
+              </div>
+
+              {/* Jobs Form Content */}
+              <div style={styles.jobsFormContainer}>
+                <div style={styles.jobsForm}>
+                  {/* Name Field */}
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>Name</label>
+                    <input type="text" style={styles.formInput} />
+                  </div>
+
+                  {/* Industry Field */}
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>Industry</label>
+                    <input type="text" style={styles.formInput} />
+                  </div>
+
+                  {/* Why interested Field */}
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>Why are you interested in this</label>
+                    <textarea style={styles.formTextarea} rows={3}></textarea>
+                  </div>
+
+                  {/* Content Idea Field */}
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>Your Content Idea / Concept</label>
+                    <textarea style={styles.formTextarea} rows={3}></textarea>
+                  </div>
+
+                  {/* Expected Fee Range */}
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>Expected Fee Range</label>
+                    <input type="text" style={styles.formInput} />
+                  </div>
+
+                  {/* Availability Date and Number of Deliverables */}
+                  <div style={styles.formRow}>
+                    <div style={styles.formGroupHalf}>
+                      <label style={styles.formLabel}>Availability Date</label>
+                      <input type="text" style={styles.formInput} />
+                    </div>
+                    <div style={styles.formGroupHalf}>
+                      <label style={styles.formLabel}>Number of Deliverables You</label>
+                      <input type="text" style={styles.formInput} />
+                    </div>
+                  </div>
+
+                  {/* Platform Checkboxes */}
+                  <div style={styles.checkboxGrid}>
+                    <label style={styles.checkboxLabel}>
+                      <input type="checkbox" style={styles.checkbox} />
+                      <span style={styles.checkboxText}>IG Feeds</span>
+                    </label>
+                    <label style={styles.checkboxLabel}>
+                      <input type="checkbox" style={styles.checkbox} />
+                      <span style={styles.checkboxText}>IG Reels</span>
+                    </label>
+                    <label style={styles.checkboxLabel}>
+                      <input type="checkbox" style={styles.checkbox} />
+                      <span style={styles.checkboxText}>IG Story</span>
+                    </label>
+                    <label style={styles.checkboxLabel}>
+                      <input type="checkbox" style={styles.checkbox} />
+                      <span style={styles.checkboxText}>TikTok</span>
+                    </label>
+                    <label style={styles.checkboxLabel}>
+                      <input type="checkbox" style={styles.checkbox} />
+                      <span style={styles.checkboxText}>YouTube</span>
+                    </label>
+                    <label style={styles.checkboxLabel}>
+                      <input type="checkbox" style={styles.checkbox} />
+                      <span style={styles.checkboxText}>X (Twitter)</span>
+                    </label>
+                  </div>
+
+                  {/* Past Relevant Campaigns */}
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>Past Relevant Campaigns</label>
+                    <textarea style={styles.formTextarea} rows={3} placeholder="🔗"></textarea>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={styles.formActions}>
+                    <button style={styles.declineButton} onClick={handleDecline}>Decline</button>
+                    <button style={styles.acceptButton} onClick={handleAccept}>Accept</button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Accepted Modal */}
+      {showAcceptedModal && (
+        <>
+          <div style={styles.modalOverlay} onClick={() => setShowAcceptedModal(false)}></div>
+          <div style={styles.modal}>
+            <h2 style={styles.modalTitle}>Accepted!</h2>
+            <div style={styles.checkmarkContainer}>
+              <svg width="80" height="80" viewBox="0 0 100 100" style={styles.checkmark}>
+                <polyline 
+                  points="20,50 40,70 80,30" 
+                  fill="none" 
+                  stroke="#22c55e" 
+                  strokeWidth="8" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <button style={styles.chatButton} onClick={handleChatFromModal}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" style={{ marginRight: '8px' }}>
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              Chat
+            </button>
+          </div>
+        </>
+      )}
     </>
   );
 }
-
 
 const styles: { [key: string]: React.CSSProperties } = {
   circles: { position: 'fixed', width: '100%', height: '100%', overflow: 'hidden', zIndex: -1 },
@@ -273,7 +424,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: 'all 0.2s',
   },
   tabActive: { background: '#e357a3', color: 'white' },
-  tabInactive: { color: '#999' },
+  tabInactive: { color: '#999', background: 'transparent' },
   chatList: { flex: 1, overflowY: 'auto', paddingBottom: '20px' },
   chatItem: { display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 30px', borderLeft: '3px solid transparent', cursor: 'pointer' },
   chatItemActive: { background: '#f9f9f9', borderLeft: '3px solid #e357a3' },
@@ -290,4 +441,176 @@ const styles: { [key: string]: React.CSSProperties } = {
   emptyChat: { flex: 1, background: '#fafafa' },
   messageInputContainer: { padding: '25px 40px', borderTop: '1px solid #f0f0f0' },
   messageInputBar: { height: '50px', background: '#f5f7fa', borderRadius: '25px' },
+
+  // Jobs Form Styles
+  jobsHeader: {
+    padding: '25px 40px',
+    borderBottom: '1px solid #f0f0f0',
+    display: 'flex',
+    alignItems: 'center',
+    background: 'white',
+  },
+  jobsHeaderLeft: { display: 'flex', alignItems: 'center', gap: '16px' },
+  jobsAvatar: { width: '50px', height: '50px', borderRadius: '50%', overflow: 'hidden' },
+  jobsHeaderName: { margin: 0, fontSize: '18px', fontWeight: '600', color: '#111' },
+  
+  jobsFormContainer: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '30px 40px',
+    background: '#fafafa',
+  },
+  jobsForm: {
+  background: '#f7f9fc', 
+  borderRadius: '16px',
+  padding: '30px',
+  maxWidth: '900px',
+  border: '1px solid #d0d6df', 
+},
+  formGroup: {
+    marginBottom: '20px',
+  },
+  formGroupHalf: {
+    flex: 1,
+  },
+  formRow: {
+    display: 'flex',
+    gap: '16px',
+    marginBottom: '20px',
+  },
+  formLabel: {
+    display: 'block',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#111',
+    marginBottom: '8px',
+  },
+  formInput: {
+    width: '100%',
+    padding: '12px 16px',
+    border: '1px solid #e0e0e0',
+    borderRadius: '8px',
+    fontSize: '14px',
+    color: '#333',
+    outline: 'none',
+    boxSizing: 'border-box',
+  },
+  formTextarea: {
+    width: '100%',
+    padding: '12px 16px',
+    border: '1px solid #e0e0e0',
+    borderRadius: '8px',
+    fontSize: '14px',
+    color: '#333',
+    outline: 'none',
+    resize: 'vertical',
+    fontFamily: 'inherit',
+    boxSizing: 'border-box',
+  },
+  checkboxGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '12px',
+    marginBottom: '20px',
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '12px 16px',
+    border: '1px solid #e0e0e0',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
+  },
+  checkboxText: {
+    fontSize: '14px',
+    color: '#333',
+    fontWeight: '500',
+  },
+  formActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '12px',
+    marginTop: '30px',
+  },
+  declineButton: {
+    padding: '12px 32px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '15px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  acceptButton: {
+    padding: '12px 32px',
+    background: '#e357a3',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '15px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 999,
+  },
+  modal: {
+    position: 'fixed',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    background: 'white',
+    borderRadius: '16px',
+    padding: '40px 50px',
+    zIndex: 1000,
+    textAlign: 'center',
+    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
+    minWidth: '320px',
+  },
+  modalTitle: {
+    margin: '0 0 30px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#111',
+  },
+  checkmarkContainer: {
+    marginBottom: '30px',
+    display: 'flex',
+    justifyContent: 'center',
+  },
+  checkmark: {
+    display: 'block',
+  },
+  chatButton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '12px 40px',
+    background: '#e357a3',
+    color: 'white',
+    border: 'none',
+    borderRadius: '25px',
+    fontSize: '15px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
 };

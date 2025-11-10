@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function ProfilePage() {
   const [activeNav, setActiveNav] = useState('profile');
   const [activeTab, setActiveTab] = useState('profile');
+  const router = useRouter();
 
   return (
     <>
@@ -138,7 +140,12 @@ export default function ProfilePage() {
           <div style={styles.actionButtons}>
             <button style={styles.btnSecondary}>Following</button>
             <button style={styles.btnSecondary}>Message</button>
-            <button style={styles.btnPrimary}>Hire for Campaign</button>
+            <button 
+              style={styles.btnPrimary}
+              onClick={() => router.push('/hire-campaign')}
+            >
+              Hire for Campaign
+            </button>
           </div>
 
           {/* Tabs */}
@@ -249,7 +256,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   sidebar: {
     width: '260px',
-    background: '#fff',
+    background: '#fafbfc',
     position: 'fixed',
     height: '100vh',
     left: 0,
@@ -258,7 +265,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '30px 20px',
     display: 'flex',
     flexDirection: 'column',
-    boxShadow: '2px 0 10px rgba(0,0,0,0.05)',
+    borderRight: '1px solid #e8e8e8',
   },
   logo: {
     marginBottom: '50px',
@@ -280,6 +287,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     textDecoration: 'none',
     fontSize: '15px',
     fontWeight: '500',
+    background: '#e8eaed',
     transition: 'all 0.2s ease',
     cursor: 'pointer',
   },

@@ -147,7 +147,7 @@ export default function WorkPage() {
           {/* User Header */}
           <div style={styles.userHeader}>
             <div style={styles.userAvatar}>
-              <Image src="/assets/logo-icon.png" alt="User" width={60} height={60} style={{borderRadius: '50%', objectFit: 'cover'}} />
+              <Image src="/assets/fotomes.png" alt="User" width={60} height={60} style={{borderRadius: '50%', objectFit: 'cover'}} />
             </div>
             <h1 style={styles.userName}>Felix Tan</h1>
           </div>

@@ -13,6 +13,8 @@ export default function SignupKol() {
     username: '',
     agreeToTerms: false,
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -20,12 +22,79 @@ export default function SignupKol() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+    setError(''); // Clear error when user types
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Signup data:', formData);
-    alert('Sign up successful! (This is a demo)');
+    
+    if (!formData.agreeToTerms) {
+      setError('Please agree to the Privacy Policy and Cookies Policy');
+      return;
+    }
+
+    // Frontend validation
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+    if (!usernameRegex.test(formData.username)) {
+      setError('Username can only contain letters, numbers, and underscores');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      console.log('🚀 Sending signup request...');
+      
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email.trim(),
+          password: formData.password,
+          fullname: formData.fullname.trim(),
+          username: formData.username.trim(),
+          role: 'kol'
+        }),
+      });
+
+      const data = await response.json();
+      console.log('📥 Response:', data);
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Something went wrong');
+      }
+
+      // Success - show success message and redirect
+      alert('✅ Sign up successful! Redirecting to login...');
+      
+      // Reset form
+      setFormData({
+        email: '',
+        password: '',
+        fullname: '',
+        username: '',
+        agreeToTerms: false,
+      });
+      
+      // Redirect after short delay
+      setTimeout(() => {
+        router.push('/login');
+      }, 1000);
+      
+    } catch (err: any) {
+      console.error('❌ Signup error:', err);
+      setError(err.message || 'Failed to sign up. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -68,16 +137,24 @@ export default function SignupKol() {
 
         {/* Toggle Buttons */}
         <div style={styles.toggleButtons}>
-          <button style={{ ...styles.toggleBtn, ...styles.toggleBtnActive }}>
+          <button type="button" style={{ ...styles.toggleBtn, ...styles.toggleBtnActive }}>
             kol
           </button>
           <button
+            type="button"
             style={styles.toggleBtn}
             onClick={() => router.push('/signup-company')}
           >
             company
           </button>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div style={styles.errorMessage}>
+            {error}
+          </div>
+        )}
 
         {/* Signup Form */}
         <form onSubmit={handleSubmit} style={styles.form}>
@@ -88,6 +165,7 @@ export default function SignupKol() {
             value={formData.email}
             onChange={handleInputChange}
             style={styles.input}
+            disabled={loading}
             required
           />
           <input
@@ -97,7 +175,9 @@ export default function SignupKol() {
             value={formData.password}
             onChange={handleInputChange}
             style={styles.input}
+            disabled={loading}
             required
+            minLength={6}
           />
           <input
             type="text"
@@ -106,6 +186,7 @@ export default function SignupKol() {
             value={formData.fullname}
             onChange={handleInputChange}
             style={styles.input}
+            disabled={loading}
             required
           />
           <input
@@ -115,7 +196,10 @@ export default function SignupKol() {
             value={formData.username}
             onChange={handleInputChange}
             style={styles.input}
+            disabled={loading}
             required
+            pattern="[a-zA-Z0-9_]+"
+            title="Username can only contain letters, numbers, and underscores"
           />
 
           <div style={styles.checkboxGroup}>
@@ -126,6 +210,7 @@ export default function SignupKol() {
               checked={formData.agreeToTerms}
               onChange={handleInputChange}
               style={styles.checkbox}
+              disabled={loading}
               required
             />
             <label htmlFor="terms" style={styles.checkboxLabel}>
@@ -140,8 +225,16 @@ export default function SignupKol() {
             </label>
           </div>
 
-          <button type="submit" style={styles.button}>
-            sign up
+          <button 
+            type="submit" 
+            style={{
+              ...styles.button,
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? 'not-allowed' : 'pointer'
+            }}
+            disabled={loading}
+          >
+            {loading ? 'Signing up...' : 'sign up'}
           </button>
         </form>
       </div>
@@ -214,6 +307,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#fff',
     boxShadow: '0 4px 10px rgba(46,92,184,0.3)',
   },
+  errorMessage: {
+    width: '100%',
+    padding: '12px 16px',
+    marginBottom: '20px',
+    borderRadius: '12px',
+    background: '#fee',
+    color: '#c33',
+    fontSize: '14px',
+    textAlign: 'center',
+    border: '1px solid #fcc',
+  },
   form: {
     width: '100%',
   },
@@ -233,10 +337,10 @@ const styles: { [key: string]: React.CSSProperties } = {
   checkboxGroup: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center', // ✅ Tengahin
+    justifyContent: 'center',
     gap: '10px',
     marginBottom: '25px',
-    textAlign: 'center', // ✅ Biar label rata tengah juga
+    textAlign: 'center',
   },
   checkbox: {
     width: '18px',

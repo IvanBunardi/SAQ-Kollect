@@ -17,9 +17,18 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+    // ✅ Ganti baseUrl dengan 'moduleSuffixes' agar tidak deprecated
+    "moduleSuffixes": [
+      ".ts",
+      ".tsx",
+      ".js",
+      ".jsx",
+      ""
+    ],
+    // ✅ Tetap pakai path alias ke root
     "paths": {
       "@/*": [
-        "./src/*"
+        "./*"
       ]
     },
     "plugins": [
@@ -33,8 +42,6 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts",
     ".next\\dev/types/**/*.ts",
     ".next\\dev/types/**/*.ts"
   ],

@@ -9,11 +9,14 @@ export default function SignupCompany() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    companyName: '',
+    fullname: '', // ✅ ganti dari companyName ke fullname
     username: '',
     agreeToTerms: false,
   });
 
+  const [loading, setLoading] = useState(false);
+
+  // 🔧 Handle perubahan input
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -22,14 +25,39 @@ export default function SignupCompany() {
     }));
   };
 
+  // 🚀 Submit form ke API
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Signup data:', formData);
-    alert('Sign up successful! (This is a demo)');
+
+    if (!formData.agreeToTerms) {
+      alert('❗ Harap setujui Privacy & Cookies Policy');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/register-company', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to register');
+
+      alert('✅ Company registered successfully!');
+      router.push('/login');
+    } catch (err: any) {
+      console.error('❌ Error:', err.message);
+      alert(err.message || 'Failed to register company');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div style={styles.container}>
+      {/* Background Animations */}
       <style jsx>{`
         @keyframes float1 {
           0%, 100% { transform: translate(0, 0) rotate(0deg); }
@@ -71,6 +99,7 @@ export default function SignupCompany() {
           <button
             style={styles.toggleBtn}
             onClick={() => router.push('/signup-kol')}
+            disabled={loading}
           >
             kol
           </button>
@@ -101,9 +130,9 @@ export default function SignupCompany() {
           />
           <input
             type="text"
-            name="companyName"
+            name="fullname" // ✅ ganti dari companyName ke fullname
             placeholder="company name"
-            value={formData.companyName}
+            value={formData.fullname} // ✅ ganti dari companyName ke fullname
             onChange={handleInputChange}
             style={styles.input}
             required
@@ -140,8 +169,8 @@ export default function SignupCompany() {
             </label>
           </div>
 
-          <button type="submit" style={styles.button}>
-            sign up
+          <button type="submit" style={styles.button} disabled={loading}>
+            {loading ? 'Signing up...' : 'Sign Up'}
           </button>
         </form>
       </div>
@@ -151,7 +180,6 @@ export default function SignupCompany() {
 
 /* ================================
    ✨ STYLE SECTION ✨
-   (Sudah dioptimasi biar mirip Figma)
 ================================ */
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
@@ -232,13 +260,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     boxSizing: 'border-box',
   },
   checkboxGroup: {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center', // ✨ Biar center di tengah
-  gap: '10px',
-  marginBottom: '25px',
-  textAlign: 'center',       // ✨ Tambahan biar label ikut rata tengah
-},
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '10px',
+    marginBottom: '25px',
+    textAlign: 'center',
+  },
   checkbox: {
     width: '18px',
     height: '18px',

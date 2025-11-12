@@ -51,7 +51,7 @@ export default function SignupKol() {
     try {
       console.log('🚀 Sending signup request...');
       
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -106,6 +106,13 @@ export default function ProfilePage() {
               </svg>
               <span>Work</span>
             </Link>
+            <Link href="/settings" style={styles.navItem}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.4 4.4l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.4-4.4l4.2-4.2"/>
+              </svg>
+              <span>Settings</span>
+            </Link>
           </nav>
           
           {/* Decorative circles */}

@@ -3,11 +3,21 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function CreatePage() {
+  const router = useRouter();
   const [activeNav, setActiveNav] = useState('create');
   const [selectedType, setSelectedType] = useState<'photo' | 'video' | 'story' | null>(null);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [formData, setFormData] = useState({
+    caption: '',
+    location: '',
+    taggedPeople: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleTypeSelect = (type: 'photo' | 'video' | 'story') => {
     setSelectedType(type);
@@ -16,6 +26,7 @@ export default function CreatePage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setUploadedFile(file);
       const reader = new FileReader();
       reader.onload = (e) => {
         setUploadedImage(e.target?.result as string);
@@ -24,9 +35,61 @@ export default function CreatePage() {
     }
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
   const handleBack = () => {
     setSelectedType(null);
     setUploadedImage(null);
+    setUploadedFile(null);
+    setFormData({ caption: '', location: '', taggedPeople: '' });
+    setError('');
+  };
+
+  const handleSubmit = async () => {
+    if (!uploadedFile || !selectedType) {
+      setError('Please upload a file');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('file', uploadedFile);
+      formDataToSend.append('type', selectedType);
+      formDataToSend.append('caption', formData.caption);
+      formDataToSend.append('location', formData.location);
+      
+      // Parse tagged people (comma separated)
+      if (formData.taggedPeople) {
+        const tags = formData.taggedPeople.split(',').map(tag => tag.trim());
+        formDataToSend.append('taggedPeople', JSON.stringify(tags));
+      }
+
+      const res = await fetch('/api/posts/create', {
+        method: 'POST',
+        body: formDataToSend,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || 'Failed to create post');
+        setLoading(false);
+        return;
+      }
+
+      alert('Post created successfully!');
+      router.push('/feeds');
+    } catch (err) {
+      console.error(err);
+      setError('Network error, please try again.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -191,6 +254,12 @@ export default function CreatePage() {
                 <h1 style={styles.createTitle}>Create New Post</h1>
               </div>
 
+              {error && (
+                <div style={styles.errorBox}>
+                  {error}
+                </div>
+              )}
+
               <div style={styles.createContent}>
                 {/* Preview Section */}
                 <div style={styles.previewSection}>
@@ -213,7 +282,7 @@ export default function CreatePage() {
                             <line x1="12" y1="3" x2="12" y2="15"/>
                           </svg>
                         </div>
-                        <p style={styles.uploadText}>Upload Foto</p>
+                        <p style={styles.uploadText}>Upload {selectedType}</p>
                         <p style={styles.uploadSubtext}>Click or drag and drop</p>
                       </label>
                     )}
@@ -228,6 +297,9 @@ export default function CreatePage() {
                   <div style={styles.formGroup}>
                     <label style={styles.formLabel}>Caption</label>
                     <textarea 
+                      name="caption"
+                      value={formData.caption}
+                      onChange={handleInputChange}
                       style={styles.textarea}
                       placeholder="Write Your Caption"
                       rows={4}
@@ -243,7 +315,10 @@ export default function CreatePage() {
                         <circle cx="12" cy="10" r="3"/>
                       </svg>
                       <input 
-                        type="text" 
+                        type="text"
+                        name="location"
+                        value={formData.location}
+                        onChange={handleInputChange}
                         style={styles.input}
                         placeholder="Add location"
                       />
@@ -261,16 +336,27 @@ export default function CreatePage() {
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                       </svg>
                       <input 
-                        type="text" 
+                        type="text"
+                        name="taggedPeople"
+                        value={formData.taggedPeople}
+                        onChange={handleInputChange}
                         style={styles.input}
-                        placeholder="Tag people"
+                        placeholder="Tag people (comma separated)"
                       />
                     </div>
                   </div>
 
                   {/* Share Post Button */}
-                  <button style={styles.shareButton}>
-                    Share Post
+                  <button 
+                    style={{
+                      ...styles.shareButton,
+                      opacity: loading ? 0.6 : 1,
+                      cursor: loading ? 'not-allowed' : 'pointer'
+                    }}
+                    onClick={handleSubmit}
+                    disabled={loading}
+                  >
+                    {loading ? 'Posting...' : 'Share Post'}
                   </button>
                 </div>
               </div>
@@ -374,6 +460,16 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   createTitle: { fontSize: '28px', fontWeight: '700', color: '#111', margin: 0 },
   
+  errorBox: {
+    background: '#fee',
+    border: '1px solid #fcc',
+    borderRadius: '8px',
+    padding: '12px 16px',
+    color: '#c33',
+    marginBottom: '20px',
+    fontSize: '14px',
+  },
+
   createContent: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' },
   
   // Preview Section

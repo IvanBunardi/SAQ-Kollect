@@ -1,11 +1,69 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
+interface Post {
+  _id: string;
+  user: {
+    _id: string;
+    name: string;
+    username: string;
+    profilePicture?: string;
+  };
+  type: string;
+  caption: string;
+  mediaUrl: string;
+  location?: string;
+  likesCount: number;
+  commentsCount: number;
+  savesCount: number;
+  isLikedByUser: boolean;
+  isSavedByUser: boolean;
+  createdAt: string;
+}
+
 export default function Feeds() {
   const [activeNav, setActiveNav] = useState('home');
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const fetchPosts = async () => {
+    try {
+      const res = await fetch('/api/posts/feeds?page=1&limit=20');
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || 'Failed to load posts');
+        setLoading(false);
+        return;
+      }
+
+      setPosts(data.posts);
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setError('Network error');
+      setLoading(false);
+    }
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+    return `${Math.floor(seconds / 86400)} days ago`;
+  };
 
   return (
     <>
@@ -26,42 +84,15 @@ export default function Feeds() {
 
       {/* Background circles */}
       <div style={styles.circles}>
-        {/* Left side circles */}
         <div style={{...styles.circle, ...styles.blue, ...styles.huge, top: '-180px', left: '-180px', animationDelay: '0s'}}></div>
         <div style={{...styles.circle, ...styles.lightpink, ...styles.extrabig, top: '-120px', left: '120px', animationDelay: '2s'}}></div>
         <div style={{...styles.circle, ...styles.lightblue, ...styles.big, top: '50px', left: '150px', animationDelay: '1s'}}></div>
-        <div style={{...styles.circle, ...styles.verylightblue, ...styles.medium, top: '10px', left: '90px', animationDelay: '3s'}}></div>
-        <div style={{...styles.circle, ...styles.pink, ...styles.small, top: '120px', left: '20px', animationDelay: '4s'}}></div>
-        
-        <div style={{...styles.circle, ...styles.lightpink, ...styles.big, top: '280px', left: '200px', animationDelay: '2.5s'}}></div>
-        <div style={{...styles.circle, ...styles.blue, ...styles.medium, top: '320px', left: '50px', animationDelay: '1.5s'}}></div>
-        <div style={{...styles.circle, ...styles.verylightblue, ...styles.small, top: '350px', left: '150px', animationDelay: '5s'}}></div>
-        
         <div style={{...styles.circle, ...styles.blue, ...styles.huge, bottom: '-150px', left: '-120px', animationDelay: '1s'}}></div>
         <div style={{...styles.circle, ...styles.pink, ...styles.extrabig, bottom: '-80px', left: '180px', animationDelay: '3s'}}></div>
-        <div style={{...styles.circle, ...styles.lightblue, ...styles.big, bottom: '80px', left: '100px', animationDelay: '2s'}}></div>
-        <div style={{...styles.circle, ...styles.verylightblue, ...styles.medium, bottom: '120px', left: '200px', animationDelay: '4s'}}></div>
-        <div style={{...styles.circle, ...styles.lightpink, ...styles.small, bottom: '200px', left: '30px', animationDelay: '3.5s'}}></div>
-        <div style={{...styles.circle, ...styles.cream, ...styles.tiny, bottom: '160px', left: '150px', animationDelay: '6s'}}></div>
-        
-        {/* Right side circles */}
         <div style={{...styles.circle, ...styles.blue, ...styles.huge, top: '-160px', right: '-160px', animationDelay: '2s'}}></div>
         <div style={{...styles.circle, ...styles.lightpink, ...styles.extrabig, top: '-100px', right: '140px', animationDelay: '4s'}}></div>
-        <div style={{...styles.circle, ...styles.lightblue, ...styles.big, top: '60px', right: '120px', animationDelay: '1s'}}></div>
-        <div style={{...styles.circle, ...styles.verylightblue, ...styles.medium, top: '20px', right: '80px', animationDelay: '5s'}}></div>
-        <div style={{...styles.circle, ...styles.pink, ...styles.small, top: '140px', right: '40px', animationDelay: '3s'}}></div>
-        
-        <div style={{...styles.circle, ...styles.blue, ...styles.medium, top: '280px', right: '30px', animationDelay: '6s'}}></div>
-        <div style={{...styles.circle, ...styles.lightblue, ...styles.small, top: '350px', right: '120px', animationDelay: '2.5s'}}></div>
-        <div style={{...styles.circle, ...styles.pink, ...styles.tiny, top: '400px', right: '80px', animationDelay: '4.5s'}}></div>
-        <div style={{...styles.circle, ...styles.lightpink, ...styles.small, top: '450px', right: '180px', animationDelay: '7s'}}></div>
-        
         <div style={{...styles.circle, ...styles.blue, ...styles.huge, bottom: '-140px', right: '-120px', animationDelay: '3s'}}></div>
         <div style={{...styles.circle, ...styles.pink, ...styles.extrabig, bottom: '-60px', right: '160px', animationDelay: '1s'}}></div>
-        <div style={{...styles.circle, ...styles.lightblue, ...styles.big, bottom: '100px', right: '80px', animationDelay: '5s'}}></div>
-        <div style={{...styles.circle, ...styles.verylightblue, ...styles.medium, bottom: '140px', right: '200px', animationDelay: '2s'}}></div>
-        <div style={{...styles.circle, ...styles.lightpink, ...styles.small, bottom: '180px', right: '20px', animationDelay: '6s'}}></div>
-        <div style={{...styles.circle, ...styles.darkblue, ...styles.tiny, bottom: '220px', right: '120px', animationDelay: '4s'}}></div>
       </div>
 
       <div style={styles.container}>
@@ -147,125 +178,78 @@ export default function Feeds() {
         <div style={styles.mainContent}>
           <h1 style={styles.pageTitle}>Feeds</h1>
           
-          <div style={styles.feedGrid}>
-            {/* Feed Card 1 - Blue with images */}
-            <div style={{...styles.feedCard, background: 'linear-gradient(135deg, #a5c8f0, #c8ddf0)'}}>
-              <div style={styles.feedHeader}>
-                <div style={styles.userAvatar}></div>
-                <div style={styles.userInfo}>
-                  <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>Felix Tan</h3>
-                  <p style={{margin: 0, fontSize: '13px', color: '#666'}}>2 hours ago</p>
-                </div>
-              </div>
-              
-              <div style={styles.feedText}>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore
-              </div>
-              
-              <div style={styles.feedImages}>
-                <div style={styles.feedImage}>
-                  <div style={styles.scoreCircle}>7.9</div>
-                </div>
-                <div style={styles.feedImage}>
-                  <div style={styles.mysterySilhouette}></div>
-                  <div style={styles.mysteryText}>???</div>
-                </div>
-              </div>
-              
-              <div style={styles.feedActions}>
-                <div style={styles.actionButtons}>
-                  <button style={styles.actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                    </svg>
-                  </button>
-                  <button style={styles.actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
-                  </button>
-                  <button style={styles.actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-                    </svg>
-                  </button>
-                </div>
-                <div style={styles.playBtn}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3"/>
-                  </svg>
-                </div>
-              </div>
+          {loading ? (
+            <div style={styles.loadingBox}>Loading posts...</div>
+          ) : error ? (
+            <div style={styles.errorBox}>{error}</div>
+          ) : posts.length === 0 ? (
+            <div style={styles.emptyBox}>
+              <p>No posts yet. Create your first post!</p>
+              <Link href="/create" style={styles.createLink}>Create Post</Link>
             </div>
-
-            {/* Empty gray card 1 */}
-            <div style={{...styles.feedCard, background: 'linear-gradient(135deg, #e8e8e8, #f5f5f5)', minHeight: '300px'}}></div>
-
-            {/* Empty gray card 2 */}
-            <div style={{...styles.feedCard, background: 'linear-gradient(135deg, #e8e8e8, #f5f5f5)', minHeight: '300px'}}></div>
-
-            {/* Empty gray card 3 */}
-            <div style={{...styles.feedCard, background: 'linear-gradient(135deg, #e8e8e8, #f5f5f5)', minHeight: '300px'}}></div>
-
-            {/* Feed Card 2 - Blue with images */}
-            <div style={{...styles.feedCard, background: 'linear-gradient(135deg, #a5c8f0, #c8ddf0)'}}>
-              <div style={styles.feedHeader}>
-                <div style={styles.userAvatar}></div>
-                <div style={styles.userInfo}>
-                  <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>Felix Tan</h3>
-                  <p style={{margin: 0, fontSize: '13px', color: '#666'}}>2 hours ago</p>
+          ) : (
+            <div style={styles.feedGrid}>
+              {posts.map((post) => (
+                <div key={post._id} style={{...styles.feedCard, background: 'linear-gradient(135deg, #a5c8f0, #c8ddf0)'}}>
+                  <div style={styles.feedHeader}>
+                    <div style={styles.userAvatar}>
+                      {post.user.profilePicture ? (
+                        <img src={post.user.profilePicture} alt={post.user.name} style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />
+                      ) : null}
+                    </div>
+                    <div style={styles.userInfo}>
+                      <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>{post.user.name}</h3>
+                      <p style={{margin: 0, fontSize: '13px', color: '#666'}}>{formatTimeAgo(post.createdAt)}</p>
+                    </div>
+                  </div>
+                  
+                  {post.caption && (
+                    <div style={styles.feedText}>
+                      {post.caption}
+                    </div>
+                  )}
+                  
+                  <div style={styles.feedImages}>
+                    <div style={styles.feedImage}>
+                      <img src={post.mediaUrl} alt="Post" style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '18px'}} />
+                    </div>
+                  </div>
+                  
+                  {post.location && (
+                    <div style={styles.locationTag}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                        <circle cx="12" cy="10" r="3"/>
+                      </svg>
+                      <span>{post.location}</span>
+                    </div>
+                  )}
+                  
+                  <div style={styles.feedActions}>
+                    <div style={styles.actionButtons}>
+                      <button style={styles.actionBtn}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill={post.isLikedByUser ? '#e74c3c' : 'none'} stroke="currentColor" strokeWidth="2">
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
+                        <span style={{fontSize: '13px', marginLeft: '4px'}}>{post.likesCount}</span>
+                      </button>
+                      <button style={styles.actionBtn}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        <span style={{fontSize: '13px', marginLeft: '4px'}}>{post.commentsCount}</span>
+                      </button>
+                      <button style={styles.actionBtn}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill={post.isSavedByUser ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              
-              <div style={styles.feedText}>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore
-              </div>
-              
-              <div style={styles.feedImages}>
-                <div style={styles.feedImage}>
-                  <div style={styles.scoreCircle}>8.2</div>
-                </div>
-                <div style={styles.feedImage}>
-                  <div style={styles.mysterySilhouette}></div>
-                  <div style={styles.mysteryText}>???</div>
-                </div>
-              </div>
-              
-              <div style={styles.feedActions}>
-                <div style={styles.actionButtons}>
-                  <button style={styles.actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                    </svg>
-                  </button>
-                  <button style={styles.actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
-                  </button>
-                  <button style={styles.actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-                    </svg>
-                  </button>
-                </div>
-                <div style={styles.playBtn}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3"/>
-                  </svg>
-                </div>
-              </div>
+              ))}
             </div>
-
-            {/* Empty gray card 4 */}
-            <div style={{...styles.feedCard, background: 'linear-gradient(135deg, #e8e8e8, #f5f5f5)', minHeight: '300px'}}></div>
-
-            {/* Empty gray card 5 */}
-            <div style={{...styles.feedCard, background: 'linear-gradient(135deg, #e8e8e8, #f5f5f5)', minHeight: '400px'}}></div>
-
-            {/* Empty gray card 6 */}
-            <div style={{...styles.feedCard, background: 'linear-gradient(135deg, #e8e8e8, #f5f5f5)', minHeight: '250px'}}></div>
-          </div>
+          )}
         </div>
       </div>
     </>
@@ -289,16 +273,11 @@ const styles: { [key: string]: React.CSSProperties } = {
   pink: { background: '#e357a3' },
   lightpink: { background: '#f4a3c8' },
   blue: { background: '#4371f0' },
-  darkblue: { background: '#2952cc' },
   lightblue: { background: '#a5c8f0' },
-  verylightblue: { background: '#c8ddf0' },
-  cream: { background: '#f0f0f0' },
   huge: { width: '350px', height: '350px' },
   extrabig: { width: '280px', height: '280px' },
   big: { width: '200px', height: '200px' },
-  medium: { width: '140px', height: '140px' },
-  small: { width: '90px', height: '90px' },
-  tiny: { width: '60px', height: '60px' },
+
   container: {
     display: 'flex',
     minHeight: '100vh',
@@ -373,6 +352,36 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginBottom: '35px',
     marginLeft: '10px',
   },
+  loadingBox: {
+    textAlign: 'center',
+    padding: '60px',
+    fontSize: '18px',
+    color: '#666',
+  },
+  errorBox: {
+    background: '#fee',
+    border: '1px solid #fcc',
+    borderRadius: '12px',
+    padding: '20px',
+    color: '#c33',
+    fontSize: '16px',
+  },
+  emptyBox: {
+    textAlign: 'center',
+    padding: '80px 40px',
+    background: '#f9f9f9',
+    borderRadius: '16px',
+  },
+  createLink: {
+    display: 'inline-block',
+    marginTop: '20px',
+    padding: '12px 32px',
+    background: '#4371f0',
+    color: 'white',
+    textDecoration: 'none',
+    borderRadius: '10px',
+    fontWeight: '600',
+  },
   feedGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
@@ -408,48 +417,22 @@ const styles: { [key: string]: React.CSSProperties } = {
   feedImages: {
     display: 'flex',
     gap: '12px',
-    marginBottom: '18px',
+    marginBottom: '12px',
   },
   feedImage: {
     flex: 1,
-    height: '180px',
+    height: '300px',
     borderRadius: '18px',
-    background: 'linear-gradient(135deg, #1a1a2e, #0f0f1e)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+    background: '#f0f0f0',
     overflow: 'hidden',
   },
-  scoreCircle: {
-    width: '75px',
-    height: '75px',
-    border: '3px solid #4dd0e1',
-    borderRadius: '50%',
+  locationTag: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '26px',
-    color: '#4dd0e1',
-    fontWeight: 'bold',
-  },
-  mysterySilhouette: {
-    width: '70px',
-    height: '70px',
-    background: '#000',
-    clipPath: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)',
-  },
-  mysteryText: {
-    position: 'absolute',
-    bottom: '16px',
-    right: '16px',
-    background: 'rgba(77, 208, 225, 0.2)',
-    padding: '6px 12px',
-    borderRadius: '8px',
-    border: '1px solid #4dd0e1',
-    fontSize: '14px',
-    color: '#4dd0e1',
-    fontWeight: 'bold',
+    gap: '6px',
+    fontSize: '13px',
+    color: '#666',
+    marginBottom: '12px',
   },
   feedActions: {
     display: 'flex',
@@ -461,29 +444,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '12px',
   },
   actionBtn: {
-    width: '38px',
-    height: '38px',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '8px 14px',
     border: 'none',
     background: 'rgba(255, 255, 255, 0.8)',
     borderRadius: '10px',
     cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     transition: 'all 0.2s ease',
     color: '#666',
-  },
-  playBtn: {
-    width: '46px',
-    height: '46px',
-    background: 'white',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-    transition: 'all 0.2s ease',
-    color: '#333',
+    fontSize: '14px',
   },
 };

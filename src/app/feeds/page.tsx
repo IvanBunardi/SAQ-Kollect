@@ -249,9 +249,19 @@ export default function Feeds() {
                       )}
                     </div>
                     <div style={styles.userInfo}>
-                      <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>{post.user?.name || 'Unknown User'}</h3>
-                      <p style={{margin: 0, fontSize: '13px', color: '#666'}}>@{post.user?.username || 'unknown'} • {formatTimeAgo(post.createdAt)}</p>
+                      <Link 
+                        href={`/profile/${post.user?.username}`} 
+                        style={{ textDecoration: 'none', color: 'inherit' }}
+                      >
+                        <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>
+                          {post.user?.name}
+                        </h3>
+                        <p style={{margin: 0, fontSize: '13px', color: '#666'}}>
+                          @{post.user?.username} • {formatTimeAgo(post.createdAt)}
+                        </p>
+                      </Link>
                     </div>
+
                   </div>
                   
                   {post.caption && (

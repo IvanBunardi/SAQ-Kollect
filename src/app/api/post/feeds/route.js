@@ -25,33 +25,61 @@ export async function GET(request) {
 
     await connectDB();
 
-    // Get pagination parameters
+    // Pagination
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page')) || 1;
     const limit = parseInt(searchParams.get('limit')) || 10;
     const skip = (page - 1) * limit;
 
-    // Get all posts (you can add following filter later)
+    // Query posts
     const posts = await Post.find({ isActive: true })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('user', 'name username profilePicture')
-      .populate('taggedPeople', 'name username')
-      .populate('comments.user', 'name username profilePicture')
+
+      // FIX: gunakan FULLNAME bukan name
+      .populate('user', 'fullname username profilePicture')
+      .populate('taggedPeople', 'fullname username profilePicture')
+
+      // FIX COMMENTS user full info
+      .populate('comments.user', 'fullname username profilePicture')
       .lean();
 
-    // Get total count for pagination
+    // Total post count
     const total = await Post.countDocuments({ isActive: true });
 
-    // Add additional info for each post
+    // Formatting output
     const postsWithInfo = posts.map(post => ({
       ...post,
+      // FIX: Like count, save count, etc
       likesCount: post.likes?.length || 0,
       commentsCount: post.comments?.length || 0,
       savesCount: post.saves?.length || 0,
       isLikedByUser: post.likes?.includes(decoded.userId) || false,
       isSavedByUser: post.saves?.includes(decoded.userId) || false,
+
+      // FIX USER NAME OUTPUT → AGAR FE TETAP BISA PAKAI post.user.name
+      user: {
+        ...post.user,
+        name: post.user?.fullname || post.user?.username || "Unknown",
+      },
+
+      // FIX TAGGED PEOPLE NAME
+      taggedPeople: post.taggedPeople?.map(tp => ({
+        ...tp,
+        name: tp.fullname || tp.username,
+      })) || [],
+
+      // FIX COMMENTS NAME
+      comments: post.comments?.map(c => ({
+        ...c,
+        user: c.user
+          ? {
+              ...c.user,
+              name: c.user.fullname || c.user.username,
+            }
+          : null,
+      })) || [],
     }));
 
     return NextResponse.json(
@@ -67,6 +95,7 @@ export async function GET(request) {
       },
       { status: 200 }
     );
+
   } catch (error) {
     console.error('Get feeds error:', error);
     return NextResponse.json(

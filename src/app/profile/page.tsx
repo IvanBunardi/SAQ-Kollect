@@ -40,7 +40,7 @@ export default function ProfilePage() {
       }
       
       console.log('📡 Fetching profile with token...');
-      const response = await fetch('/api/profile', {
+      const response = await fetch('/api/profile/me', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -116,7 +116,7 @@ export default function ProfilePage() {
 
       console.log('💾 Saving profile...', editFormData);
 
-      const response = await fetch('/api/profile', {
+      const response = await fetch('/api/profile/me', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

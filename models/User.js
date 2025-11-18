@@ -26,12 +26,30 @@ const UserSchema = new mongoose.Schema(
       required: [true, 'Username is required'],
       unique: true,
       trim: true,
-      match: [/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'],
+      minlength: [3, 'Username must be at least 3 characters'],
     },
     role: {
       type: String,
-      enum: ['kol', 'company', 'admin'],
-      default: 'kol',
+      enum: ['user', 'kol', 'brand', 'admin'],
+      default: 'user',
+    },
+    profilePhoto: {
+      type: String, // Base64 string or URL
+      default: null,
+    },
+    bio: {
+      type: String,
+      default: '',
+      maxlength: [500, 'Bio cannot exceed 500 characters'],
+    },
+    website: {
+      type: String,
+      default: '',
+    },
+    gender: {
+      type: String,
+      enum: ['Memilih tidak memberi tahu', 'Laki-laki', 'Perempuan', 'Lainnya'],
+      default: 'Memilih tidak memberi tahu',
     },
     isActive: {
       type: Boolean,
@@ -39,7 +57,7 @@ const UserSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true,
+    timestamps: true, // Automatically adds createdAt and updatedAt
   }
 );
 

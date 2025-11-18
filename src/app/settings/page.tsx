@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { CSSProperties, ChangeEvent, FormEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeNav, setActiveNav] = useState<string>('settings');
   const [activeSettingsTab, setActiveSettingsTab] = useState<string>('edit-profil');
   const [selectedGender, setSelectedGender] = useState<string>('Memilih tidak memberi tahu');
@@ -18,12 +19,14 @@ export default function SettingsPage() {
     website?: string;
     bio?: string;
     gender?: string;
+    profilePhoto?: string | null;
   };
 
   // User data state
   const [userData, setUserData] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [saveLoading, setSaveLoading] = useState<boolean>(false);
+  const [photoLoading, setPhotoLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [saveSuccess, setSaveSuccess] = useState<string>('');
   const [saveError, setSaveError] = useState<string>('');
@@ -117,6 +120,122 @@ export default function SettingsPage() {
     }));
   };
 
+  const handlePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handlePhotoChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setSaveError('Tipe file tidak valid. Hanya JPEG, PNG, dan WebP yang diperbolehkan.');
+      setTimeout(() => setSaveError(''), 3000);
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setSaveError('Ukuran file terlalu besar. Maksimal 5MB.');
+      setTimeout(() => setSaveError(''), 3000);
+      return;
+    }
+
+    setPhotoLoading(true);
+    setSaveError('');
+    setSaveSuccess('');
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('photo', file);
+
+      console.log('📤 Uploading photo...');
+
+      const response = await fetch('/api/profile/photo', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      console.log('📦 Upload response:', data);
+
+      if (data.success && data.user) {
+        setUserData(data.user as User);
+        setSaveSuccess('Foto profil berhasil diperbarui!');
+        console.log('✅ Photo uploaded successfully');
+        
+        setTimeout(() => setSaveSuccess(''), 3000);
+      } else {
+        setSaveError(data.message || 'Gagal mengupload foto');
+        console.error('❌ Upload error:', data.message);
+      }
+    } catch (err) {
+      console.error('❌ Photo upload error:', err);
+      setSaveError('Gagal mengupload foto');
+    } finally {
+      setPhotoLoading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!confirm('Apakah Anda yakin ingin menghapus foto profil?')) {
+      return;
+    }
+
+    setPhotoLoading(true);
+    setSaveError('');
+    setSaveSuccess('');
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      const response = await fetch('/api/profile/photo', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.user) {
+        setUserData(data.user as User);
+        setSaveSuccess('Foto profil berhasil dihapus!');
+        setTimeout(() => setSaveSuccess(''), 3000);
+      } else {
+        setSaveError(data.message || 'Gagal menghapus foto');
+      }
+    } catch (err) {
+      console.error('❌ Photo delete error:', err);
+      setSaveError('Gagal menghapus foto');
+    } finally {
+      setPhotoLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaveLoading(true);
@@ -142,6 +261,9 @@ export default function SettingsPage() {
         body: JSON.stringify({
           fullname: formData.fullname,
           username: formData.username,
+          bio: formData.bio,
+          website: formData.website,
+          gender: formData.gender,
         }),
       });
 
@@ -153,7 +275,6 @@ export default function SettingsPage() {
         setSaveSuccess('Profil berhasil diperbarui!');
         console.log('✅ Profile updated successfully');
         
-        // Clear success message after 3 seconds
         setTimeout(() => setSaveSuccess(''), 3000);
       } else {
         setSaveError(data.message || 'Gagal memperbarui profil');
@@ -405,12 +526,48 @@ export default function SettingsPage() {
               {/* Profile Photo Section */}
               <div style={styles.profilePhotoSection}>
                 <div style={styles.profilePhoto}>
-                  <Image src="/assets/logo-icon.png" alt={userData?.username || 'User'} width={70} height={70} style={{borderRadius: '50%', objectFit: 'cover'}} />
+                  {userData?.profilePhoto ? (
+                    <img 
+                      src={userData.profilePhoto} 
+                      alt={userData?.username || 'User'} 
+                      style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}}
+                    />
+                  ) : (
+                    <Image 
+                      src="/assets/logo-icon.png" 
+                      alt={userData?.username || 'User'} 
+                      width={70} 
+                      height={70} 
+                      style={{borderRadius: '50%', objectFit: 'cover'}} 
+                    />
+                  )}
                 </div>
                 <div style={styles.profileInfo}>
                   <h3 style={styles.profileName}>{userData?.username || 'Loading...'}</h3>
                 </div>
-                <button style={styles.photoButton}>Ubah foto</button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handlePhotoChange}
+                  style={{display: 'none'}}
+                />
+                <button 
+                  style={{...styles.photoButton, opacity: photoLoading ? 0.6 : 1}}
+                  onClick={handlePhotoClick}
+                  disabled={photoLoading}
+                >
+                  {photoLoading ? 'Uploading...' : 'Ubah foto'}
+                </button>
+                {userData?.profilePhoto && (
+                  <button 
+                    style={{...styles.photoButtonRemove, opacity: photoLoading ? 0.6 : 1}}
+                    onClick={handleRemovePhoto}
+                    disabled={photoLoading}
+                  >
+                    Hapus foto
+                  </button>
+                )}
               </div>
 
               {/* Form */}
@@ -665,12 +822,30 @@ const styles: { [key: string]: CSSProperties } = {
     borderRadius: '16px',
     marginBottom: '35px',
   },
-  profilePhoto: { width: '70px', height: '70px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0 },
+  profilePhoto: { 
+    width: '70px', 
+    height: '70px', 
+    borderRadius: '50%', 
+    overflow: 'hidden', 
+    flexShrink: 0,
+    border: '2px solid #e0e0e0'
+  },
   profileInfo: { flex: 1 },
   profileName: { margin: 0, fontSize: '18px', fontWeight: '600', color: '#111' },
   photoButton: {
     padding: '10px 24px',
     background: '#4371f0',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  photoButtonRemove: {
+    padding: '10px 24px',
+    background: '#e74c3c',
     color: 'white',
     border: 'none',
     borderRadius: '8px',

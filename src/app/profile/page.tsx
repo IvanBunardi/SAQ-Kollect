@@ -295,7 +295,21 @@ export default function ProfilePage() {
 
           <div style={styles.profileHeader}>
             <div style={styles.profileAvatar}>
-              <Image src="/assets/fotopp.png" alt="Profile" width={150} height={150} style={{borderRadius: '50%', objectFit: 'cover'}} />
+              {userData?.profilePhoto ? (
+                <img 
+                  src={userData.profilePhoto} 
+                  alt="Profile" 
+                  style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} 
+                />
+              ) : (
+                <Image 
+                  src="/assets/fotopp.png" 
+                  alt="Profile" 
+                  width={150} 
+                  height={150} 
+                  style={{borderRadius: '50%', objectFit: 'cover'}} 
+                />
+              )}
             </div>
             
             <div style={styles.profileInfo}>

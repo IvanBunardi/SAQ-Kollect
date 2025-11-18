@@ -26,12 +26,20 @@ export default function CreatePage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Check file size
+      const fileSizeMB = file.size / (1024 * 1024);
+      if (fileSizeMB > 100) {
+        setError(`File too large: ${fileSizeMB.toFixed(2)}MB. Max 100MB.`);
+        return;
+      }
+
       setUploadedFile(file);
       const reader = new FileReader();
       reader.onload = (e) => {
         setUploadedImage(e.target?.result as string);
       };
       reader.readAsDataURL(file);
+      setError('');
     }
   };
 
@@ -70,24 +78,44 @@ export default function CreatePage() {
         formDataToSend.append('taggedPeople', JSON.stringify(tags));
       }
 
-      const res = await fetch('/api/posts/create', {
+      console.log('Sending request to /api/post/create...');
+
+      const res = await fetch('/api/post/create', {
         method: 'POST',
         body: formDataToSend,
+        credentials: 'include', // Important untuk cookies
       });
+
+      console.log('Response status:', res.status);
+      console.log('Response headers:', res.headers);
+
+      // Check content type
+      const contentType = res.headers.get('content-type');
+      console.log('Content-Type:', contentType);
+
+      if (!contentType || !contentType.includes('application/json')) {
+        // Server returned HTML instead of JSON
+        const text = await res.text();
+        console.error('Server returned HTML:', text.substring(0, 200));
+        
+        setError('Server error: Expected JSON but got HTML. Check if API route exists.');
+        setLoading(false);
+        return;
+      }
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.message || 'Failed to create post');
+        setError(data.message || `Server error: ${res.status}`);
         setLoading(false);
         return;
       }
 
       alert('Post created successfully!');
       router.push('/feeds');
-    } catch (err) {
-      console.error(err);
-      setError('Network error, please try again.');
+    } catch (err: any) {
+      console.error('Create post error:', err);
+      setError(`Network error: ${err.message}`);
       setLoading(false);
     }
   };

@@ -26,6 +26,7 @@ export default function Login() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // IMPORTANT: Include cookies
         body: JSON.stringify(formData),
       });
 
@@ -38,14 +39,11 @@ export default function Login() {
         return;
       }
 
-      // ✅ SIMPAN TOKEN KE LOCALSTORAGE
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        console.log('✅ Token saved to localStorage!');
-        console.log('Token (first 30 chars):', data.token.substring(0, 30) + '...');
-      }
+      // ✅ Token is now saved in HTTP-only cookie by the server
+      // No need to use localStorage
+      console.log('✅ Login successful! Token saved in cookie.');
 
-      // Opsional: Simpan user data
+      // Optionally save user data to localStorage for UI purposes only
       if (data.user) {
         localStorage.setItem('user', JSON.stringify(data.user));
         console.log('✅ User data saved:', data.user.username);
@@ -53,9 +51,9 @@ export default function Login() {
 
       alert('Login successful!');
       
-      // Redirect ke profile page
-      console.log('➡️ Redirecting to profile...');
-      router.push('/profile');
+      // Redirect to feeds page
+      console.log('➡️ Redirecting to feeds...');
+      router.push('/feeds');
       
     } catch (err) {
       console.error('❌ Login error:', err);

@@ -15,7 +15,8 @@ const PostSchema = new mongoose.Schema(
     },
     caption: {
       type: String,
-      trim: true,
+      default: '',
+      maxlength: 2200,
     },
     mediaUrl: {
       type: String,
@@ -23,7 +24,7 @@ const PostSchema = new mongoose.Schema(
     },
     location: {
       type: String,
-      trim: true,
+      default: '',
     },
     taggedPeople: [{
       type: mongoose.Schema.Types.ObjectId,
@@ -61,9 +62,10 @@ const PostSchema = new mongoose.Schema(
   }
 );
 
-// Index untuk optimasi query
+// Indexes untuk performance
 PostSchema.index({ user: 1, createdAt: -1 });
-PostSchema.index({ type: 1 });
-PostSchema.index({ createdAt: -1 });
+PostSchema.index({ isActive: 1, createdAt: -1 });
 
-export default mongoose.models.Post || mongoose.model('Post', PostSchema);
+const Post = mongoose.models.Post || mongoose.model('Post', PostSchema);
+
+export default Post;

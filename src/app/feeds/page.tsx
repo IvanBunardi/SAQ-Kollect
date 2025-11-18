@@ -36,19 +36,33 @@ export default function Feeds() {
 
   const fetchPosts = async () => {
     try {
-      const res = await fetch('/api/posts/feeds?page=1&limit=20');
+      console.log('📡 Fetching posts...');
+      
+      const res = await fetch('/api/post/feeds?page=1&limit=20', {
+        method: 'GET',
+        credentials: 'include', // PENTING: Include cookies
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Response status:', res.status);
+      
       const data = await res.json();
+      console.log('Response data:', data);
 
       if (!res.ok) {
+        console.error('❌ Failed to load posts:', data.message);
         setError(data.message || 'Failed to load posts');
         setLoading(false);
         return;
       }
 
-      setPosts(data.posts);
+      console.log('✅ Posts loaded:', data.posts.length, 'posts');
+      setPosts(data.posts || []);
       setLoading(false);
     } catch (err) {
-      console.error(err);
+      console.error('❌ Network error:', err);
       setError('Network error');
       setLoading(false);
     }
@@ -176,15 +190,48 @@ export default function Feeds() {
 
         {/* Main Content */}
         <div style={styles.mainContent}>
-          <h1 style={styles.pageTitle}>Feeds</h1>
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px'}}>
+            <h1 style={styles.pageTitle}>Feeds</h1>
+            <button 
+              onClick={fetchPosts} 
+              style={{
+                padding: '10px 20px',
+                background: '#4371f0',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+              }}
+            >
+              🔄 Refresh
+            </button>
+          </div>
           
           {loading ? (
             <div style={styles.loadingBox}>Loading posts...</div>
           ) : error ? (
-            <div style={styles.errorBox}>{error}</div>
+            <div style={styles.errorBox}>
+              <p>{error}</p>
+              <button 
+                onClick={fetchPosts}
+                style={{
+                  marginTop: '10px',
+                  padding: '8px 16px',
+                  background: '#4371f0',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                }}
+              >
+                Try Again
+              </button>
+            </div>
           ) : posts.length === 0 ? (
             <div style={styles.emptyBox}>
-              <p>No posts yet. Create your first post!</p>
+              <p style={{fontSize: '18px', color: '#666', marginBottom: '10px'}}>No posts yet. Create your first post!</p>
               <Link href="/create" style={styles.createLink}>Create Post</Link>
             </div>
           ) : (
@@ -193,13 +240,17 @@ export default function Feeds() {
                 <div key={post._id} style={{...styles.feedCard, background: 'linear-gradient(135deg, #a5c8f0, #c8ddf0)'}}>
                   <div style={styles.feedHeader}>
                     <div style={styles.userAvatar}>
-                      {post.user.profilePicture ? (
+                      {post.user?.profilePicture ? (
                         <img src={post.user.profilePicture} alt={post.user.name} style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />
-                      ) : null}
+                      ) : (
+                        <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '20px', fontWeight: 'bold'}}>
+                          {post.user?.name?.[0]?.toUpperCase() || '?'}
+                        </div>
+                      )}
                     </div>
                     <div style={styles.userInfo}>
-                      <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>{post.user.name}</h3>
-                      <p style={{margin: 0, fontSize: '13px', color: '#666'}}>{formatTimeAgo(post.createdAt)}</p>
+                      <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>{post.user?.name || 'Unknown User'}</h3>
+                      <p style={{margin: 0, fontSize: '13px', color: '#666'}}>@{post.user?.username || 'unknown'} • {formatTimeAgo(post.createdAt)}</p>
                     </div>
                   </div>
                   
@@ -349,8 +400,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '38px',
     fontWeight: '700',
     color: '#111',
-    marginBottom: '35px',
-    marginLeft: '10px',
+    margin: 0,
   },
   loadingBox: {
     textAlign: 'center',
@@ -365,6 +415,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '20px',
     color: '#c33',
     fontSize: '16px',
+    textAlign: 'center',
   },
   emptyBox: {
     textAlign: 'center',

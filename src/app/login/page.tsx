@@ -21,6 +21,8 @@ export default function Login() {
     setError('');
 
     try {
+      console.log('🔐 Attempting login...');
+      
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -28,6 +30,7 @@ export default function Login() {
       });
 
       const data = await res.json();
+      console.log('📦 Login response:', data);
 
       if (!res.ok) {
         setError(data.message || 'Login failed');
@@ -35,10 +38,27 @@ export default function Login() {
         return;
       }
 
+      // ✅ SIMPAN TOKEN KE LOCALSTORAGE
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        console.log('✅ Token saved to localStorage!');
+        console.log('Token (first 30 chars):', data.token.substring(0, 30) + '...');
+      }
+
+      // Opsional: Simpan user data
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+        console.log('✅ User data saved:', data.user.username);
+      }
+
       alert('Login successful!');
-      router.push('/feeds');
+      
+      // Redirect ke profile page
+      console.log('➡️ Redirecting to profile...');
+      router.push('/profile');
+      
     } catch (err) {
-      console.error(err);
+      console.error('❌ Login error:', err);
       setError('Network error, please try again.');
     } finally {
       setLoading(false);

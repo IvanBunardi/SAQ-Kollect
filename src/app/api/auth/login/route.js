@@ -1,58 +1,84 @@
-import dbConnect from "@/lib/mongodb";
-import User from "@/models/User";
-import bcrypt from "bcryptjs";
+// app/api/auth/login/route.js
+import { NextResponse } from 'next/server';
+import dbConnect from '@/lib/mongodb';
+import User from '@/models/User';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
-export async function POST(req) {
+export async function POST(request) {
   try {
     await dbConnect();
-    const { email, password } = await req.json();
 
+    const body = await request.json();
+    const { email, password } = body;
+
+    // Validate input
     if (!email || !password) {
-      return new Response(
-        JSON.stringify({ message: "Email dan password wajib diisi." }),
+      return NextResponse.json(
+        { success: false, message: 'Email and password are required' },
         { status: 400 }
       );
     }
 
-    // Cek apakah user ada
-    const user = await User.findOne({ email });
-    if (!user) {
-      return new Response(
-        JSON.stringify({ message: "Email tidak terdaftar." }),
-        { status: 404 }
-      );
-    }
+    // Find user by email
+    const user = await User.findOne({ email: email.toLowerCase() });
 
-    // Bandingkan password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return new Response(
-        JSON.stringify({ message: "Password salah." }),
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid email or password' },
         { status: 401 }
       );
     }
 
-    // Login sukses
-    return new Response(
-      JSON.stringify({
-        message: "Login berhasil.",
-        user: {
-          id: user._id,
-          email: user.email,
-          fullname: user.fullname,
-          username: user.username,
-          role: user.role,
-        },
-      }),
-      { status: 200 }
+    // Check password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid email or password' },
+        { status: 401 }
+      );
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return NextResponse.json(
+        { success: false, message: 'Account is inactive' },
+        { status: 403 }
+      );
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        userId: user._id,
+        email: user.email,
+        role: user.role 
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' } // Token valid for 7 days
     );
-  } catch (err) {
-    console.error("Login error:", err);
-    return new Response(
-      JSON.stringify({
-        message: "Terjadi kesalahan di server.",
-        error: err.message,
-      }),
+
+    console.log('Login successful, token generated:', token.substring(0, 20) + '...');
+
+    // Return success with token
+    return NextResponse.json({
+      success: true,
+      message: 'Login successful',
+      token: token,
+      user: {
+        id: user._id,
+        email: user.email,
+        fullname: user.fullname,
+        username: user.username,
+        role: user.role,
+      },
+    });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    return NextResponse.json(
+      { success: false, message: 'Server error', error: error.message },
       { status: 500 }
     );
   }

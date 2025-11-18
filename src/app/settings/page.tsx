@@ -1,22 +1,197 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import type { CSSProperties, ChangeEvent, FormEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
-  const [activeNav, setActiveNav] = useState('settings');
-  const [activeSettingsTab, setActiveSettingsTab] = useState('edit-profil');
-  const [selectedGender, setSelectedGender] = useState('Memilih tidak memberi tahu');
+  const router = useRouter();
+  const [activeNav, setActiveNav] = useState<string>('settings');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<string>('edit-profil');
+  const [selectedGender, setSelectedGender] = useState<string>('Memilih tidak memberi tahu');
+  
+  type User = {
+    fullname?: string;
+    username?: string;
+    website?: string;
+    bio?: string;
+    gender?: string;
+  };
+
+  // User data state
+  const [userData, setUserData] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [saveLoading, setSaveLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+  const [saveSuccess, setSaveSuccess] = useState<string>('');
+  const [saveError, setSaveError] = useState<string>('');
+  
+  // Form data
+  type ProfileForm = {
+    fullname: string;
+    username: string;
+    website: string;
+    bio: string;
+    gender: string;
+  };
+
+  const [formData, setFormData] = useState<ProfileForm>({
+    fullname: '',
+    username: '',
+    website: '',
+    bio: '',
+    gender: 'Memilih tidak memberi tahu'
+  });
+
+  useEffect(() => {
+    fetchUserProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        console.log('❌ No token found, redirecting to login');
+        router.push('/login');
+        return;
+      }
+      
+      const response = await fetch('/api/profile', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      console.log('📦 User data:', data);
+      
+      if (data.success && data.user) {
+        const u: User = data.user || {};
+        setUserData(u);
+        setFormData({
+          fullname: u.fullname || '',
+          username: u.username || '',
+          website: u.website || '',
+          bio: u.bio || '',
+          gender: u.gender || 'Memilih tidak memberi tahu'
+        });
+        setSelectedGender(u.gender || 'Memilih tidak memberi tahu');
+      } else {
+        setError(data.message || 'Failed to load profile');
+        
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          router.push('/login');
+        }
+      }
+    } catch (err) {
+      console.error('❌ Profile fetch error:', err);
+      setError('Failed to load profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleGenderChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setSelectedGender(value);
+    setFormData(prev => ({
+      ...prev,
+      gender: value
+    }));
+  };
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSaveLoading(true);
+    setSaveError('');
+    setSaveSuccess('');
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      console.log('💾 Saving profile...', formData);
+
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullname: formData.fullname,
+          username: formData.username,
+        }),
+      });
+
+      const data = await response.json();
+      console.log('📦 Update response:', data);
+
+      if (data.success && data.user) {
+        setUserData(data.user as User);
+        setSaveSuccess('Profil berhasil diperbarui!');
+        console.log('✅ Profile updated successfully');
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setSaveSuccess(''), 3000);
+      } else {
+        setSaveError(data.message || 'Gagal memperbarui profil');
+        console.error('❌ Update error:', data.message);
+      }
+    } catch (err) {
+      console.error('❌ Profile update error:', err);
+      setSaveError('Gagal memperbarui profil');
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    router.push('/login');
+  };
+
+  if (loading) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div style={styles.spinner}></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <>
       <style jsx global>{`
         @keyframes float {
-          0%   { transform: translateY(0px) translateX(0px) rotate(0deg); }
-          33%  { transform: translateY(-20px) translateX(10px) rotate(5deg); }
-          66%  { transform: translateY(15px) translateX(-10px) rotate(-3deg); }
-          100% { transform: translateY(0px) translateX(0px) rotate(0deg); }
+          0%, 100% { transform: translateY(0px) translateX(0px) rotate(0deg); }
+          33% { transform: translateY(-20px) translateX(10px) rotate(5deg); }
+          66% { transform: translateY(15px) translateX(-10px) rotate(-3deg); }
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
         body { margin: 0; padding: 0; overflow-x: hidden; }
       `}</style>
@@ -104,6 +279,14 @@ export default function SettingsPage() {
               </svg>
               <span>Settings</span>
             </Link>
+            <button onClick={handleLogout} style={{...styles.navItem, marginTop: 'auto'}}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              <span>Logout</span>
+            </button>
           </nav>
           
           <div style={styles.sidebarDecoration}>
@@ -207,25 +390,39 @@ export default function SettingsPage() {
             <div style={styles.content}>
               <h1 style={styles.contentTitle}>Edit Profil</h1>
 
+              {/* Success/Error Messages */}
+              {saveSuccess && (
+                <div style={styles.successMessage}>
+                  {saveSuccess}
+                </div>
+              )}
+              {saveError && (
+                <div style={styles.errorMessage}>
+                  {saveError}
+                </div>
+              )}
+
               {/* Profile Photo Section */}
               <div style={styles.profilePhotoSection}>
                 <div style={styles.profilePhoto}>
-                  <Image src="/assets/logo-icon.png" alt="MJ TOYS" width={70} height={70} style={{borderRadius: '50%', objectFit: 'cover'}} />
+                  <Image src="/assets/logo-icon.png" alt={userData?.username || 'User'} width={70} height={70} style={{borderRadius: '50%', objectFit: 'cover'}} />
                 </div>
                 <div style={styles.profileInfo}>
-                  <h3 style={styles.profileName}>MJ TOYS</h3>
+                  <h3 style={styles.profileName}>{userData?.username || 'Loading...'}</h3>
                 </div>
                 <button style={styles.photoButton}>Ubah foto</button>
               </div>
 
               {/* Form */}
-              <div style={styles.form}>
+              <form onSubmit={handleSubmit} style={styles.form}>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Name</label>
                   <input 
                     type="text" 
+                    name="fullname"
                     style={styles.input}
-                    defaultValue="MJ TOYS Company"
+                    value={formData.fullname}
+                    onChange={handleInputChange}
                     placeholder="Name"
                   />
                 </div>
@@ -234,8 +431,10 @@ export default function SettingsPage() {
                   <label style={styles.label}>Username</label>
                   <input 
                     type="text" 
+                    name="username"
                     style={styles.input}
-                    defaultValue="MJ TOYS"
+                    value={formData.username}
+                    onChange={handleInputChange}
                     placeholder="Username"
                   />
                 </div>
@@ -244,7 +443,10 @@ export default function SettingsPage() {
                   <label style={styles.label}>Situs Web</label>
                   <input 
                     type="text" 
+                    name="website"
                     style={styles.input}
+                    value={formData.website}
+                    onChange={handleInputChange}
                     placeholder="Situs Web"
                   />
                 </div>
@@ -252,8 +454,11 @@ export default function SettingsPage() {
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Bio</label>
                   <textarea 
+                    name="bio"
                     style={styles.textarea}
                     rows={4}
+                    value={formData.bio}
+                    onChange={handleInputChange}
                     placeholder="Bio"
                   />
                 </div>
@@ -261,9 +466,10 @@ export default function SettingsPage() {
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Jenis Kelamin</label>
                   <select 
+                    name="gender"
                     style={styles.select}
                     value={selectedGender}
-                    onChange={(e) => setSelectedGender(e.target.value)}
+                    onChange={handleGenderChange}
                   >
                     <option value="Memilih tidak memberi tahu">Memilih tidak memberi tahu</option>
                     <option value="Laki-laki">Laki-laki</option>
@@ -272,8 +478,14 @@ export default function SettingsPage() {
                   </select>
                 </div>
 
-                <button style={styles.submitButton}>Kirim</button>
-              </div>
+                <button 
+                  type="submit" 
+                  style={{...styles.submitButton, opacity: saveLoading ? 0.6 : 1}}
+                  disabled={saveLoading}
+                >
+                  {saveLoading ? 'Menyimpan...' : 'Kirim'}
+                </button>
+              </form>
             </div>
           )}
 
@@ -339,7 +551,7 @@ export default function SettingsPage() {
   );
 }
 
-const styles: { [key: string]: React.CSSProperties } = {
+const styles: { [key: string]: CSSProperties } = {
   circles: { position: 'fixed', width: '100%', height: '100%', overflow: 'hidden', zIndex: -1 },
   circle: { position: 'absolute', borderRadius: '50%', opacity: 1, animation: 'float 15s infinite ease-in-out' },
   pink: { background: '#e357a3' },
@@ -380,6 +592,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: '500',
     background: '#e8eaed',
     transition: 'all 0.2s ease',
+    cursor: 'pointer',
+    border: 'none',
   },
   navItemActive: { background: '#4371f0', color: 'white' },
   sidebarDecoration: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '200px', overflow: 'hidden', pointerEvents: 'none' },
@@ -420,6 +634,26 @@ const styles: { [key: string]: React.CSSProperties } = {
   contentArea: { flex: 1, marginLeft: '630px', padding: '40px 60px', zIndex: 10 },
   content: { maxWidth: '800px' },
   contentTitle: { fontSize: '32px', fontWeight: '700', color: '#111', marginBottom: '35px' },
+
+  // Success/Error Messages
+  successMessage: {
+    background: '#d4edda',
+    color: '#155724',
+    padding: '14px 20px',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    fontSize: '15px',
+    border: '1px solid #c3e6cb'
+  },
+  errorMessage: {
+    background: '#f8d7da',
+    color: '#721c24',
+    padding: '14px 20px',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    fontSize: '15px',
+    border: '1px solid #f5c6cb'
+  },
 
   // Profile Photo Section
   profilePhotoSection: {
@@ -523,4 +757,22 @@ const styles: { [key: string]: React.CSSProperties } = {
 
   // Placeholder
   placeholderText: { fontSize: '15px', color: '#999', marginTop: '20px' },
+
+  // Loading
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '100vh',
+    gap: '20px',
+  },
+  spinner: {
+    width: '50px',
+    height: '50px',
+    border: '5px solid #f0f0f0',
+    borderTop: '5px solid #4371f0',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+  },
 };

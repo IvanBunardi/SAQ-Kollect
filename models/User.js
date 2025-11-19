@@ -30,7 +30,7 @@ const UserSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'kol', 'brand', 'admin'],
+      enum: ['user', 'kol', 'brand', 'company', 'admin'],
       default: 'user',
     },
     profilePhoto: {
@@ -50,6 +50,11 @@ const UserSchema = new mongoose.Schema(
       type: String,
       enum: ['Memilih tidak memberi tahu', 'Laki-laki', 'Perempuan', 'Lainnya'],
       default: 'Memilih tidak memberi tahu',
+    },
+    category: {
+      type: String,
+      enum: ['Tech', 'Fashion', 'Food', 'Travel', 'Lifestyle', 'Gaming', 'Beauty', 'Fitness', 'Business', 'Other'],
+      default: 'Tech',
     },
     isActive: {
       type: Boolean,

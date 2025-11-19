@@ -147,7 +147,9 @@ type User = {
   createdAt?: string;
   bio?: string;
   profilePicture?: string;
-  profilePhoto?: string; // in case your API uses this
+  profilePhoto?: string;
+  followersCount?: number;
+  followingCount?: number;
 };
 
 type Post = {
@@ -174,10 +176,11 @@ export default function UserProfile({ username }: { username: string }) {
     setLoading(true);
     setError("");
     try {
-      // public page — no token required
       const res = await fetch(`/api/profile/${username}`);
+      
+      console.log('🔍 Profile API Response Status:', res.status);
+      
       if (!res.ok) {
-        // try to parse json error if available
         let txt = await res.text();
         try {
           const j = JSON.parse(txt);
@@ -192,6 +195,8 @@ export default function UserProfile({ username }: { username: string }) {
       }
 
       const data = await res.json();
+      console.log('📦 Profile Data:', data);
+      
       if (!data.success) {
         setError(data.message || "User not found");
         setUserData(null);
@@ -199,9 +204,16 @@ export default function UserProfile({ username }: { username: string }) {
         return;
       }
 
+      console.log('✅ User Data Loaded:', {
+        username: data.user.username,
+        hasProfilePhoto: !!data.user.profilePhoto,
+        hasProfilePicture: !!data.user.profilePicture,
+        profilePhoto: data.user.profilePhoto?.substring(0, 50) + '...',
+      });
+
       setUserData(data.user || null);
 
-      // fetch posts (if your API exists)
+      // fetch posts
       const resPosts = await fetch(`/api/profile/${username}/posts`);
       if (resPosts.ok) {
         const postsData = await resPosts.json();
@@ -210,13 +222,27 @@ export default function UserProfile({ username }: { username: string }) {
         setPosts([]);
       }
     } catch (err) {
-      console.error("Fetch profile error:", err);
+      console.error("❌ Fetch profile error:", err);
       setError("Failed to load profile");
       setUserData(null);
       setPosts([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getAvatarUrl = (username: string, profilePhoto: string | null, profilePicture: string | null) => {
+    // Prioritas: profilePhoto > profilePicture > generated avatar
+    if (profilePhoto && profilePhoto.trim() !== '') {
+      console.log('🖼️ Using profilePhoto:', profilePhoto.substring(0, 50) + '...');
+      return profilePhoto;
+    }
+    if (profilePicture && profilePicture.trim() !== '') {
+      console.log('🖼️ Using profilePicture:', profilePicture.substring(0, 50) + '...');
+      return profilePicture;
+    }
+    console.log('🎨 Generating avatar for:', username);
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random&size=150&bold=true`;
   };
 
   if (loading) {
@@ -315,7 +341,7 @@ export default function UserProfile({ username }: { username: string }) {
               </svg>
               <span>Create</span>
             </Link>
-            <Link href={`/profile/${userData?.username || ""}`} style={{ ...styles.navItem as any, ...(styles.navItemActive as any) }}>
+            <Link href="/profile/me" style={styles.navItem as any}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
@@ -328,6 +354,13 @@ export default function UserProfile({ username }: { username: string }) {
                 <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
               </svg>
               <span>Work</span>
+            </Link>
+            <Link href="/settings" style={styles.navItem}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.4 4.4l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.4-4.4l4.2-4.2"/>
+              </svg>
+              <span>Settings</span>
             </Link>
           </nav>
 
@@ -346,15 +379,19 @@ export default function UserProfile({ username }: { username: string }) {
 
           <div style={styles.profileHeader as any}>
             <div style={styles.profileAvatar as any}>
-              {userData?.profilePhoto || userData?.profilePicture ? (
-                <img
-                  src={userData.profilePhoto || userData.profilePicture}
-                  alt={userData?.fullname || userData?.username}
-                  style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
-                />
-              ) : (
-                <Image src="/assets/fotopp.png" alt="Profile" width={150} height={150} style={{ borderRadius: "50%", objectFit: "cover" }} />
-              )}
+              <img
+                src={getAvatarUrl(
+                  userData?.username || 'User',
+                  userData?.profilePhoto || null,
+                  userData?.profilePicture || null
+                )}
+                alt={userData?.fullname || userData?.username}
+                style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+                onError={(e) => {
+                  console.error('❌ Image load error, falling back to generated avatar');
+                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.username || 'User')}&background=random&size=150&bold=true`;
+                }}
+              />
             </div>
 
             <div style={styles.profileInfo as any}>
@@ -372,7 +409,6 @@ export default function UserProfile({ username }: { username: string }) {
               </p>
 
               <div style={styles.actionButtons as any}>
-                {/* Public profile: show Hire + Message buttons, no Edit */}
                 <button style={styles.btnPrimary as any} onClick={() => router.push(`/hire/${userData?.username || ""}`)}>
                   Hire for Campaign
                 </button>
@@ -405,10 +441,10 @@ export default function UserProfile({ username }: { username: string }) {
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
                       {posts.slice(0, 6).map((p) => (
                         <div key={p._id} style={{ borderRadius: 12, overflow: "hidden", height: 120, background: "#fff" }}>
-                          {p.mediaUrl ? <img src={p.mediaUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ padding: 8 }}>{p.caption}</div>}
+                          {p.mediaUrl ? <img src={p.mediaUrl} alt="Post" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ padding: 8, fontSize: 12 }}>{p.caption}</div>}
                         </div>
                       ))}
-                      {posts.length === 0 && <p style={{ color: "#666" }}>No posts yet.</p>}
+                      {posts.length === 0 && <p style={{ color: "#666", gridColumn: "1 / -1" }}>No posts yet.</p>}
                     </div>
                   </div>
                 </div>
@@ -452,7 +488,6 @@ export default function UserProfile({ username }: { username: string }) {
             </>
           ) : (
             <div>
-              {/* Work tab content (minimal placeholder) */}
               <div style={{ ...styles.card as any, background: "linear-gradient(135deg, #a5c8f0, #c8ddf0)" }}>
                 <div style={styles.cardHeader as any}>
                   <h3 style={styles.cardTitle as any}>Work / Portfolio</h3>

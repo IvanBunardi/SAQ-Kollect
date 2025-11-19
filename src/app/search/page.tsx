@@ -1,18 +1,43 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function SearchPage() {
   const [activeTab, setActiveTab] = useState('kol');
   const [activeNav, setActiveNav] = useState('search');
 
-  const kolResults = Array(4).fill({
-    name: 'Felix Tan',
-    category: 'Tech',
-    followers: '143K Followers'
-  });
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  
+  const router = useRouter();
+
+  // Fetch search results
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([]);
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${query}`);
+        const data = await res.json();
+        setResults(data.users ?? []);
+      } catch (err) {
+        console.log("Search error:", err);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [query]);
+
+  // Handle click to navigate to user profile
+  const handleUserClick = (username: string) => {
+    router.push(`/profile/${username}`);
+  };
 
   return (
     <>
@@ -100,7 +125,7 @@ export default function SearchPage() {
               <span>Create</span>
             </Link>
 
-            <Link href="/profile" style={{ ...styles.navItem, ...(activeNav === 'profile' && styles.navItemActive) }}>
+            <Link href="/profile/me" style={{ ...styles.navItem, ...(activeNav === 'profile' && styles.navItemActive) }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
@@ -140,7 +165,14 @@ export default function SearchPage() {
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.35-4.35" />
               </svg>
-              <input type="text" placeholder="Search" style={styles.searchInput} />
+
+              <input
+                type="text"
+                placeholder="Search"
+                style={styles.searchInput}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
             </div>
           </div>
 
@@ -164,17 +196,44 @@ export default function SearchPage() {
 
           {/* Results */}
           <div style={styles.resultsList}>
-            {kolResults.map((kol, index) => (
-              <div key={index} style={styles.resultItem}>
-                <div style={styles.resultAvatar}></div>
-                <div style={styles.resultInfo}>
-                  <h3 style={styles.resultName}>{kol.name}</h3>
-                  <p style={styles.resultMeta}>
-                    {kol.category} | {kol.followers}
-                  </p>
+            {results.map((user: any, index: number) => (
+              <div 
+                key={index} 
+                style={styles.resultItem}
+                onClick={() => handleUserClick(user.username)}
+              >
+                
+                <div style={styles.resultAvatar}>
+                  {user.profilePhoto ? (
+                    <img
+                      src={user.profilePhoto}
+                      alt={user.fullname}
+                      style={{ width: "56px", height: "56px", borderRadius: "50%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    <Image 
+                      src="/assets/fotopp.png" 
+                      alt="Default Avatar" 
+                      width={56} 
+                      height={56} 
+                      style={{ borderRadius: "50%", objectFit: "cover" }}
+                    />
+                  )}
                 </div>
+
+                <div style={styles.resultInfo}>
+                  <h3 style={styles.resultName}>{user.fullname}</h3>
+                  <p style={styles.resultMeta}>@{user.username}</p>
+                </div>
+
               </div>
             ))}
+
+            {query.trim() !== "" && results.length === 0 && (
+              <p style={{ marginTop: "20px", color: "#888" }}>
+                No results found
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -182,6 +241,7 @@ export default function SearchPage() {
   );
 }
 
+// STYLES
 const styles: { [key: string]: React.CSSProperties } = {
   circles: { position: 'fixed', width: '100%', height: '100%', overflow: 'hidden', zIndex: -1 },
   circle: { position: 'absolute', borderRadius: '50%', opacity: 1, animation: 'float 15s infinite ease-in-out' },
@@ -235,12 +295,27 @@ const styles: { [key: string]: React.CSSProperties } = {
   searchInput: { flex: 1, border: 'none', background: 'transparent', fontSize: '15px', color: '#333', outline: 'none' },
 
   tabContainer: { display: 'flex', marginBottom: '25px', borderBottom: '2px solid #e5e5e5', maxWidth: '850px' },
-  tab: { padding: '12px 0', marginRight: '35px', background: 'none', border: 'none', fontSize: '16px', fontWeight: '500', color: '#999', cursor: 'pointer' },
+  tab: { padding: '12px 0', marginRight: '35px', background: 'none', border: 'none', fontSize: '16px', fontWeight: '500', color: '#999', cursor: 'pointer', position: 'relative' },
   tabActive: { color: '#333', fontWeight: '600' },
 
   resultsList: { display: 'flex', flexDirection: 'column', gap: '0', maxWidth: '850px' },
-  resultItem: { display: 'flex', alignItems: 'center', gap: '16px', padding: '18px 0', borderBottom: '1px solid #f0f0f0', cursor: 'pointer' },
-  resultAvatar: { width: '56px', height: '56px', borderRadius: '50%', background: 'linear-gradient(135deg, #ccc, #888)' },
+  resultItem: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '16px', 
+    padding: '18px 0', 
+    borderBottom: '1px solid #f0f0f0', 
+    cursor: 'pointer',
+    transition: 'background 0.2s ease',
+  },
+  resultAvatar: { 
+    width: '56px', 
+    height: '56px', 
+    borderRadius: '50%', 
+    background: 'linear-gradient(135deg, #ccc, #888)',
+    overflow: 'hidden',
+    flexShrink: 0
+  },
   resultInfo: { flex: 1 },
   resultName: { margin: 0, fontSize: '16px', fontWeight: '600', color: '#111', marginBottom: '4px' },
   resultMeta: { margin: 0, fontSize: '14px', color: '#666' },

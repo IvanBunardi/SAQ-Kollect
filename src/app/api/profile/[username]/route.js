@@ -25,6 +25,7 @@ export async function GET(req, context) {
       );
     }
 
+    // 🔥 TAMBAHKAN profilePhoto di response
     return NextResponse.json({
       success: true,
       user: {
@@ -32,9 +33,14 @@ export async function GET(req, context) {
         fullname: user.fullname,
         username: user.username,
         role: user.role,
+        email: user.email || "",
         createdAt: user.createdAt,
         bio: user.bio || "",
-        profilePicture: user.profilePicture || "",
+        profilePhoto: user.profilePhoto || null, // ✅ TAMBAHKAN INI
+        profilePicture: user.profilePicture || null, // ✅ TAMBAHKAN INI JUGA (backup)
+        followersCount: user.followersCount || 0,
+        followingCount: user.followingCount || 0,
+        category: user.category || "Tech",
       },
     });
   } catch (error) {

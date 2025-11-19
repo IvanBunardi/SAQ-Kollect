@@ -1,26 +1,115 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+type KOL = {
+  id: string;
+  name: string;
+  username: string;
+  category: string;
+  profilePhoto: string | null;
+};
+
+type Company = {
+  id: string;
+  name: string;
+  username: string;
+  category: string;
+  profilePhoto: string | null;
+};
+
+type FeedPost = {
+  id: string;
+  caption: string;
+  mediaUrl: string | null;
+  mediaType: string;
+  likesCount: number;
+  commentsCount: number;
+  createdAt: string;
+  user: {
+    id: string;
+    fullname: string;
+    username: string;
+    profilePhoto: string | null;
+  };
+};
 
 export default function ExplorePage() {
   const [activeNav, setActiveNav] = useState('explore');
+  const [trendingKols, setTrendingKols] = useState<KOL[]>([]);
+  const [trendingCompanies, setTrendingCompanies] = useState<Company[]>([]);
+  const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const router = useRouter();
 
-  // Sample data
-  const trendingKols = [
-    { name: 'Felix Tan', category: 'Tech', color: '#e8b4d4' },
-    { name: 'Felix Tan', category: 'Tech', color: '#e357a3' },
-    { name: 'Felix Tan', category: 'Tech', color: '#a5c8f0' },
-    { name: 'Felix Tan', category: '', color: '#e8e8e8' },
-  ];
+  useEffect(() => {
+    fetchExploreData();
+  }, []);
 
-  const trendingCompanies = [
-    { name: 'Felix Tan', category: 'Tech', color: '#e8b4d4' },
-    { name: 'Felix Tan', category: 'Tech', color: '#e357a3' },
-    { name: 'Felix Tan', category: 'Tech', color: '#a5c8f0' },
-    { name: 'Felix Tan', category: '', color: '#e8e8e8' },
-  ];
+  const fetchExploreData = async () => {
+    try {
+      setLoading(true);
+
+      const [kolsRes, companiesRes, feedRes] = await Promise.all([
+        fetch('/api/explore/trending-kols'),
+        fetch('/api/explore/trending-companies'),
+        fetch('/api/explore/feed?limit=6'),
+      ]);
+
+      const kolsData = await kolsRes.json();
+      const companiesData = await companiesRes.json();
+      const feedData = await feedRes.json();
+
+      console.log('🎯 KOLs Data from API:', kolsData);
+      console.log('🎯 Companies Data from API:', companiesData);
+      console.log('🎯 Feed Data from API:', feedData);
+
+      if (kolsData.success) {
+        console.log('✅ Setting KOLs:', kolsData.kols);
+        setTrendingKols(kolsData.kols);
+      }
+
+      if (companiesData.success) {
+        console.log('✅ Setting Companies:', companiesData.companies);
+        setTrendingCompanies(companiesData.companies);
+      }
+
+      if (feedData.success) {
+        setFeedPosts(feedData.posts);
+      }
+
+    } catch (error) {
+      console.error('❌ Error fetching explore data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProfileClick = (username: string) => {
+    console.log('🔗 Navigating to profile:', username);
+    console.log('🔍 Full URL will be:', `/profile/${username}`);
+    router.push(`/profile/${username}`);
+  };
+
+  const getColorForIndex = (index: number) => {
+    const colors = ['#e8b4d4', '#e357a3', '#a5c8f0', '#c8ddf0'];
+    return colors[index % colors.length];
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    return `${Math.floor(diffInSeconds / 86400)} days ago`;
+  };
 
   return (
     <>
@@ -32,10 +121,25 @@ export default function ExplorePage() {
           100% { transform: translateY(0px) translateX(0px) rotate(0deg); }
         }
         
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
         body {
           margin: 0;
           padding: 0;
           overflow-x: hidden;
+        }
+
+        .profile-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .feed-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 8px 20px rgba(0,0,0,0.1);
         }
       `}</style>
 
@@ -106,7 +210,7 @@ export default function ExplorePage() {
               </svg>
               <span>Create</span>
             </Link>
-            <Link href="/profile" style={styles.navItem}>
+            <Link href="/profile/me" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>
@@ -140,96 +244,213 @@ export default function ExplorePage() {
         <div style={styles.mainContent}>
           <h1 style={styles.pageTitle}>Explore</h1>
 
-          {/* Trending KOL's Section */}
-          <h2 style={styles.sectionTitle}>Trending KOL's</h2>
-          <div style={styles.cardGrid}>
-            {trendingKols.map((kol, index) => (
-              <div key={`kol-${index}`} style={{...styles.card, background: kol.color}}>
-                <div style={styles.cardCircle}></div>
-                {kol.name && (
-                  <div style={styles.cardInfo}>
-                    <p style={styles.cardName}>{kol.name}</p>
-                    <p style={styles.cardCategory}>{kol.category}</p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Trending Companies Section */}
-          <h2 style={styles.sectionTitle}>Trending Companies</h2>
-          <div style={styles.cardGrid}>
-            {trendingCompanies.map((company, index) => (
-              <div key={`company-${index}`} style={{...styles.card, background: company.color}}>
-                <div style={styles.cardCircle}></div>
-                {company.name && (
-                  <div style={styles.cardInfo}>
-                    <p style={styles.cardName}>{company.name}</p>
-                    <p style={styles.cardCategory}>{company.category}</p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Feed Grid */}
-          <div style={styles.feedGrid}>
-            {/* Blue Feed Card with content */}
-            <div style={{...styles.feedCard, background: 'linear-gradient(135deg, #a5c8f0, #c8ddf0)'}}>
-              <div style={styles.feedHeader}>
-                <div style={styles.userAvatar}>
-                  <Image src="/assets/fotomes.png" alt="User" width={50} height={50} style={{borderRadius: '50%', objectFit: 'cover'}} />
-                </div>
-                <div style={styles.userInfo}>
-                  <h3 style={styles.userName}>Felix Tan</h3>
-                  <p style={styles.userTime}>2 hours ago</p>
-                </div>
-              </div>
-
-              <p style={styles.feedText}>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore
-              </p>
-
-              <div style={styles.feedImages}>
-                <div style={styles.feedImage}>
-                  <div style={styles.scoreCircle}>7.3</div>
-                </div>
-                <div style={styles.feedImage}>
-                  <div style={styles.mysterySilhouette}></div>
-                  <div style={styles.mysteryText}>???</div>
-                </div>
-              </div>
-
-              <div style={styles.feedActions}>
-                <div style={styles.actionButtons}>
-                  <button style={styles.actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                    </svg>
-                  </button>
-                  <button style={styles.actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
-                  </button>
-                  <button style={styles.actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-                    </svg>
-                  </button>
-                </div>
-                <div style={styles.playBtn}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3"/>
-                  </svg>
-                </div>
-              </div>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '40px' }}>
+              <div style={{
+                width: '50px',
+                height: '50px',
+                border: '5px solid #f0f0f0',
+                borderTop: '5px solid #4371f0',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto 20px'
+              }}></div>
+              <p>Loading explore content...</p>
             </div>
+          ) : (
+            <>
+              {/* Trending KOL's Section */}
+              <h2 style={styles.sectionTitle}>Trending KOL's</h2>
+              <div style={styles.cardGrid}>
+                {trendingKols.length > 0 ? (
+                  trendingKols.slice(0, 4).map((kol, index) => {
+                    console.log('🎨 Rendering KOL card:', kol);
+                    return (
+                      <div 
+                        key={kol.id} 
+                        className="profile-card"
+                        style={{...styles.card, background: getColorForIndex(index), cursor: 'pointer'}}
+                        onClick={() => {
+                          console.log('👆 Clicked KOL card:', {
+                            id: kol.id,
+                            name: kol.name,
+                            username: kol.username,
+                            category: kol.category
+                          });
+                          handleProfileClick(kol.username);
+                        }}
+                      >
+                        <div style={styles.cardCircle}>
+                          {kol.profilePhoto ? (
+                            <img 
+                              src={kol.profilePhoto} 
+                              alt={kol.name}
+                              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <Image 
+                              src="/assets/fotopp.png" 
+                              alt={kol.name}
+                              width={90}
+                              height={90}
+                              style={{ borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                          )}
+                        </div>
+                        <div style={styles.cardInfo}>
+                          <p style={styles.cardName}>{kol.name}</p>
+                          <p style={styles.cardCategory}>{kol.category}</p>
+                          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', margin: '5px 0 0 0' }}>
+                            @{kol.username}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#999', padding: '40px' }}>
+                    No trending KOLs available
+                  </p>
+                )}
+              </div>
 
-            {/* Gray placeholder cards */}
-            <div style={{...styles.feedCard, background: 'linear-gradient(135deg, #e8e8e8, #f5f5f5)', minHeight: '450px'}}></div>
-            <div style={{...styles.feedCard, background: 'linear-gradient(135deg, #e8e8e8, #f5f5f5)', minHeight: '450px'}}></div>
-          </div>
+              {/* Trending Companies Section */}
+              <h2 style={styles.sectionTitle}>Trending Companies</h2>
+              <div style={styles.cardGrid}>
+                {trendingCompanies.length > 0 ? (
+                  trendingCompanies.slice(0, 4).map((company, index) => {
+                    console.log('🎨 Rendering Company card:', company);
+                    return (
+                      <div 
+                        key={company.id} 
+                        className="profile-card"
+                        style={{...styles.card, background: getColorForIndex(index), cursor: 'pointer'}}
+                        onClick={() => {
+                          console.log('👆 Clicked Company card:', {
+                            id: company.id,
+                            name: company.name,
+                            username: company.username,
+                            category: company.category
+                          });
+                          handleProfileClick(company.username);
+                        }}
+                      >
+                        <div style={styles.cardCircle}>
+                          {company.profilePhoto ? (
+                            <img 
+                              src={company.profilePhoto} 
+                              alt={company.name}
+                              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <Image 
+                              src="/assets/fotopp.png" 
+                              alt={company.name}
+                              width={90}
+                              height={90}
+                              style={{ borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                          )}
+                        </div>
+                        <div style={styles.cardInfo}>
+                          <p style={styles.cardName}>{company.name}</p>
+                          <p style={styles.cardCategory}>{company.category}</p>
+                          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', margin: '5px 0 0 0' }}>
+                            @{company.username}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#999', padding: '40px' }}>
+                    No trending companies available
+                  </p>
+                )}
+              </div>
+
+              {/* Feed Grid */}
+              {feedPosts.length > 0 && (
+                <div style={styles.feedGrid}>
+                  {feedPosts.map((post) => (
+                    <div 
+                      key={post.id} 
+                      className="feed-card"
+                      style={{...styles.feedCard, background: 'linear-gradient(135deg, #a5c8f0, #c8ddf0)'}}
+                    >
+                      <div style={styles.feedHeader}>
+                        <div 
+                          style={{...styles.userAvatar, cursor: 'pointer'}}
+                          onClick={() => handleProfileClick(post.user.username)}
+                        >
+                          {post.user.profilePhoto ? (
+                            <img 
+                              src={post.user.profilePhoto} 
+                              alt={post.user.fullname}
+                              style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <Image 
+                              src="/assets/fotopp.png" 
+                              alt="User" 
+                              width={50} 
+                              height={50} 
+                              style={{borderRadius: '50%', objectFit: 'cover'}} 
+                            />
+                          )}
+                        </div>
+                        <div style={styles.userInfo}>
+                          <h3 
+                            style={{...styles.userName, cursor: 'pointer'}}
+                            onClick={() => handleProfileClick(post.user.username)}
+                          >
+                            {post.user.fullname}
+                          </h3>
+                          <p style={styles.userTime}>{formatTimeAgo(post.createdAt)}</p>
+                        </div>
+                      </div>
+
+                      <p style={styles.feedText}>{post.caption || 'No caption'}</p>
+
+                      {post.mediaUrl && (
+                        <div style={styles.feedImages}>
+                          <div style={styles.feedImage}>
+                            <img 
+                              src={post.mediaUrl} 
+                              alt="Post media"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '18px' }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div style={styles.feedActions}>
+                        <div style={styles.actionButtons}>
+                          <button style={styles.actionBtn}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                            </svg>
+                            <span style={{ fontSize: '14px', marginLeft: '4px' }}>{post.likesCount}</span>
+                          </button>
+                          <button style={styles.actionBtn}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </svg>
+                            <span style={{ fontSize: '14px', marginLeft: '4px' }}>{post.commentsCount}</span>
+                          </button>
+                          <button style={styles.actionBtn}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </>
@@ -356,6 +577,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'center',
     minHeight: '200px',
     position: 'relative',
+    transition: 'all 0.3s ease',
   },
   cardCircle: {
     width: '90px',
@@ -363,6 +585,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '50%',
     background: 'white',
     marginBottom: '15px',
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardInfo: {
     textAlign: 'center',
@@ -391,6 +617,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '22px',
     position: 'relative',
     overflow: 'hidden',
+    transition: 'all 0.3s ease',
   },
   feedHeader: {
     display: 'flex',
@@ -412,6 +639,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: '600',
     color: '#111',
     marginBottom: '2px',
+    transition: 'color 0.2s ease',
   },
   userTime: {
     margin: 0,
@@ -433,42 +661,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     flex: 1,
     height: '180px',
     borderRadius: '18px',
-    background: 'linear-gradient(135deg, #1a1a2e, #0f0f1e)',
+    overflow: 'hidden',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    overflow: 'hidden',
-  },
-  scoreCircle: {
-    width: '75px',
-    height: '75px',
-    border: '3px solid #4dd0e1',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '26px',
-    color: '#4dd0e1',
-    fontWeight: 'bold',
-  },
-  mysterySilhouette: {
-    width: '70px',
-    height: '70px',
-    background: '#000',
-    clipPath: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)',
-  },
-  mysteryText: {
-    position: 'absolute',
-    bottom: '16px',
-    right: '16px',
-    background: 'rgba(77, 208, 225, 0.2)',
-    padding: '6px 12px',
-    borderRadius: '8px',
-    border: '1px solid #4dd0e1',
-    fontSize: '14px',
-    color: '#4dd0e1',
-    fontWeight: 'bold',
   },
   feedActions: {
     display: 'flex',
@@ -480,29 +677,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '12px',
   },
   actionBtn: {
-    width: '38px',
-    height: '38px',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '8px 12px',
     border: 'none',
     background: 'rgba(255, 255, 255, 0.8)',
     borderRadius: '10px',
     cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     transition: 'all 0.2s ease',
     color: '#666',
-  },
-  playBtn: {
-    width: '46px',
-    height: '46px',
-    background: 'white',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-    transition: 'all 0.2s ease',
-    color: '#333',
   },
 };

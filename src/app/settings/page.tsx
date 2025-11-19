@@ -20,6 +20,7 @@ export default function SettingsPage() {
     bio?: string;
     gender?: string;
     profilePhoto?: string | null;
+    email?: string;
   };
 
   // User data state
@@ -49,6 +50,7 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
+    console.log('🚀 Settings page mounted, fetching user profile...');
     fetchUserProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -56,6 +58,7 @@ export default function SettingsPage() {
   const fetchUserProfile = async () => {
     try {
       const token = localStorage.getItem('token');
+      console.log('🔍 Token from localStorage:', token ? token.substring(0, 30) + '...' : 'null');
       
       if (!token) {
         console.log('❌ No token found, redirecting to login');
@@ -63,7 +66,8 @@ export default function SettingsPage() {
         return;
       }
       
-      const response = await fetch('/api/profile', {
+      console.log('📡 Fetching profile with token...');
+      const response = await fetch('/api/profile/me', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -71,6 +75,7 @@ export default function SettingsPage() {
         },
       });
       
+      console.log('📊 Response status:', response.status);
       const data = await response.json();
       console.log('📦 User data:', data);
       
@@ -85,10 +90,13 @@ export default function SettingsPage() {
           gender: u.gender || 'Memilih tidak memberi tahu'
         });
         setSelectedGender(u.gender || 'Memilih tidak memberi tahu');
+        console.log('✅ User data loaded successfully:', u.username);
       } else {
         setError(data.message || 'Failed to load profile');
+        console.error('❌ API error:', data.message);
         
         if (response.status === 401) {
+          console.log('🔐 Token invalid, clearing and redirecting to login');
           localStorage.removeItem('token');
           router.push('/login');
         }
@@ -156,8 +164,8 @@ export default function SettingsPage() {
         return;
       }
 
-      const formData = new FormData();
-      formData.append('photo', file);
+      const photoFormData = new FormData();
+      photoFormData.append('photo', file);
 
       console.log('📤 Uploading photo...');
 
@@ -166,7 +174,7 @@ export default function SettingsPage() {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
-        body: formData,
+        body: photoFormData,
       });
 
       const data = await response.json();
@@ -187,7 +195,6 @@ export default function SettingsPage() {
       setSaveError('Gagal mengupload foto');
     } finally {
       setPhotoLoading(false);
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -211,6 +218,8 @@ export default function SettingsPage() {
         return;
       }
 
+      console.log('🗑️ Deleting photo...');
+
       const response = await fetch('/api/profile/photo', {
         method: 'DELETE',
         headers: {
@@ -220,13 +229,16 @@ export default function SettingsPage() {
       });
 
       const data = await response.json();
+      console.log('📦 Delete response:', data);
 
       if (data.success && data.user) {
         setUserData(data.user as User);
         setSaveSuccess('Foto profil berhasil dihapus!');
+        console.log('✅ Photo deleted successfully');
         setTimeout(() => setSaveSuccess(''), 3000);
       } else {
         setSaveError(data.message || 'Gagal menghapus foto');
+        console.error('❌ Delete error:', data.message);
       }
     } catch (err) {
       console.error('❌ Photo delete error:', err);
@@ -252,7 +264,7 @@ export default function SettingsPage() {
 
       console.log('💾 Saving profile...', formData);
 
-      const response = await fetch('/api/profile', {
+      const response = await fetch('/api/profile/me', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -289,6 +301,7 @@ export default function SettingsPage() {
   };
 
   const handleLogout = () => {
+    console.log('🚪 Logging out...');
     localStorage.removeItem('token');
     router.push('/login');
   };
@@ -298,6 +311,17 @@ export default function SettingsPage() {
       <div style={styles.loadingContainer}>
         <div style={styles.spinner}></div>
         <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (error && !userData) {
+    return (
+      <div style={styles.errorContainer}>
+        <p style={styles.errorText}>{error}</p>
+        <button style={styles.btnPrimary} onClick={() => router.push('/login')}>
+          Go to Login
+        </button>
       </div>
     );
   }
@@ -949,5 +973,26 @@ const styles: { [key: string]: CSSProperties } = {
     borderTop: '5px solid #4371f0',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
+  },
+  errorContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '100vh',
+    gap: '20px',
+    padding: '20px'
+  },
+  errorText: { fontSize: '18px', color: '#e74c3c', textAlign: 'center' },
+  btnPrimary: {
+    padding: '12px 28px',
+    background: '#e357a3',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: '15px',
+    fontWeight: '500',
+    color: 'white',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
   },
 };

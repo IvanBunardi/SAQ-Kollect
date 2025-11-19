@@ -21,12 +21,11 @@ export default function Login() {
     setError('');
 
     try {
-      console.log('🔐 Attempting login...');
+      console.log('🔐 Attempting login with:', formData.email);
       
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // IMPORTANT: Include cookies
         body: JSON.stringify(formData),
       });
 
@@ -39,20 +38,29 @@ export default function Login() {
         return;
       }
 
-      // ✅ Token is now saved in HTTP-only cookie by the server
-      // No need to use localStorage
-      console.log('✅ Login successful! Token saved in cookie.');
+      // ✅ SAVE TOKEN TO LOCALSTORAGE - INI YANG PENTING!
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        console.log('✅ Token saved to localStorage:', data.token.substring(0, 30) + '...');
+      } else {
+        console.warn('⚠️ No token in response!');
+        setError('Login failed: No token received');
+        setLoading(false);
+        return;
+      }
 
-      // Optionally save user data to localStorage for UI purposes only
+      // Save user data for UI purposes
       if (data.user) {
         localStorage.setItem('user', JSON.stringify(data.user));
         console.log('✅ User data saved:', data.user.username);
       }
 
+      console.log('✅ Login successful! Redirecting...');
+      
+      // Show success message
       alert('Login successful!');
       
       // Redirect to feeds page
-      console.log('➡️ Redirecting to feeds...');
       router.push('/feeds');
       
     } catch (err) {
@@ -67,16 +75,44 @@ export default function Login() {
     <div style={styles.container}>
       {/* Animasi background */}
       <style jsx>{`
-        @keyframes float1 { 0%,100%{transform:translate(0,0)}50%{transform:translate(20px,-20px)}}
-        @keyframes float2 { 0%,100%{transform:translate(0,0)}50%{transform:translate(-30px,30px)}}
+        @keyframes float1 {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(20px, -20px); }
+        }
+        @keyframes float2 {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(-30px, 30px); }
+        }
       `}</style>
 
-      <div style={{...styles.circle, top: '-100px', left: '-150px', width: '400px', height: '400px', background: '#2E5CB8', animation: 'float1 20s ease-in-out infinite'}}></div>
-      <div style={{...styles.circle, bottom: '-150px', right: '-100px', width: '400px', height: '400px', background: '#E873A7', animation: 'float2 18s ease-in-out infinite'}}></div>
+      <div style={{
+        ...styles.circle,
+        top: '-100px',
+        left: '-150px',
+        width: '400px',
+        height: '400px',
+        background: '#2E5CB8',
+        animation: 'float1 20s ease-in-out infinite'
+      }}></div>
+      <div style={{
+        ...styles.circle,
+        bottom: '-150px',
+        right: '-100px',
+        width: '400px',
+        height: '400px',
+        background: '#E873A7',
+        animation: 'float2 18s ease-in-out infinite'
+      }}></div>
 
       <div style={styles.card}>
         <div style={styles.logoSection}>
-          <Image src="/assets/logo-full.png" alt="Kollect" width={400} height={175} style={{ objectFit: 'contain' }} />
+          <Image 
+            src="/assets/logo-full.png" 
+            alt="Kollect" 
+            width={400} 
+            height={175} 
+            style={{ objectFit: 'contain' }} 
+          />
         </div>
 
         <form onSubmit={handleSubmit} style={{ width: '100%' }}>
@@ -178,12 +214,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 600,
     cursor: 'pointer',
     marginTop: '10px',
+    transition: 'all 0.3s ease',
   },
   error: {
     color: '#e74c3c',
     fontSize: '14px',
     textAlign: 'center',
     marginBottom: '10px',
+    padding: '10px',
+    background: '#ffebee',
+    borderRadius: '8px',
   },
   forgotPassword: {
     textAlign: 'center',

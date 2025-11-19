@@ -67,7 +67,7 @@ export default function SettingsPage() {
       }
       
       console.log('📡 Fetching profile with token...');
-      const response = await fetch('/api/profile/me', {
+      const response = await fetch('/api/profile', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -264,7 +264,7 @@ export default function SettingsPage() {
 
       console.log('💾 Saving profile...', formData);
 
-      const response = await fetch('/api/profile/me', {
+      const response = await fetch('/api/profile', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

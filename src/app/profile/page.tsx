@@ -40,7 +40,7 @@ export default function ProfilePage() {
       }
       
       console.log('📡 Fetching profile with token...');
-      const response = await fetch('/api/profile/me', {
+      const response = await fetch('/api/profile', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -116,8 +116,8 @@ export default function ProfilePage() {
 
       console.log('💾 Saving profile...', editFormData);
 
-      const response = await fetch('/api/profile/me', {
-        method: 'PUT',
+      const response = await fetch('/api/profile', { 
+  method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -250,7 +250,8 @@ export default function ProfilePage() {
               </svg>
               <span>Create</span>
             </Link>
-            <Link href="/profile" style={{...styles.navItem, ...(activeNav === 'profile' ? styles.navItemActive : {})}}>
+<Link href="/profile/me" style={{...styles.navItem, ...(activeNav === 'profile' ? styles.navItemActive : {})}}>
+```
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>

@@ -1,27 +1,50 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
+// Definisikan tipe untuk Chat Item (sesuai data yang dikembalikan API /list)
+interface ChatItem {
+  id: string; 
+  name: string;
+  category: string;
+  followers: string;
+  profilePhoto?: string;
+}
+
+// Definisikan tipe untuk Message
+interface Message {
+    sender: string;
+    text: string;
+}
+
+// --- PENTING: HARAP GANTI INI DENGAN TOKEN JWT VALID ANDA ---
+// Token ini yang mengatasi Error 401 dan 500 JWT di backend!
+const VALID_JWT_TOKEN = localStorage.getItem("token");
+
+// Data simulasi (Fallback jika API gagal total)
+const initialChatData: ChatItem[] = [
+  { "id": "felix", "name": "Felix Tan", "category": "Tech", "followers": "143K Followers" },
+];
+
+
 export default function MessagesPage() {
   const [activeNav, setActiveNav] = useState('messages');
-  const [activeTab, setActiveTab] = useState('chats');
-  const [selectedChat, setSelectedChat] = useState('Felix Tan');
+  const [activeTab, setActiveTab] = useState<'chats' | 'jobs'>('chats');
+  
+  // Deklarasi state yang benar dan aman
+  const [chatList, setChatList] = useState<ChatItem[]>(initialChatData);
+  const [chatHistory, setChatHistory] = useState<Message[]>([]);
+  const [selectedChat, setSelectedChat] = useState(initialChatData[0]?.name || '');
   const [showAcceptedModal, setShowAcceptedModal] = useState(false);
-
-  const chatList = Array(12).fill({
-    name: 'Felix Tan',
-    category: 'Tech',
-    followers: '143K Followers'
-  });
+  
 
   const handleAccept = () => {
     setShowAcceptedModal(true);
   };
 
   const handleDecline = () => {
-    // Handle decline logic
     console.log('Declined');
   };
 
@@ -29,6 +52,84 @@ export default function MessagesPage() {
     setShowAcceptedModal(false);
     setActiveTab('chats');
   };
+
+
+  // --- useEffect: Memuat Chat List (/api/messages/list) ---
+  useEffect(() => {
+    async function loadChats() {
+      try {
+        const res = await fetch('/api/messages/list', {
+            headers: {
+                // Mengatasi Error 401
+                'Authorization': `Bearer ${VALID_JWT_TOKEN}`, 
+            },
+        });
+        
+        // Menangani Error HTTP (401 atau 500)
+        if (!res.ok) {
+            console.error(`Failed to load chats: HTTP status ${res.status}. Cek token JWT.`);
+            setChatList(initialChatData); // Fallback data
+            if (initialChatData.length > 0) setSelectedChat(initialChatData[0].name);
+            return;
+        }
+
+        const data = await res.json();
+        
+        // Memastikan data adalah Array (Mengatasi chatList.map is not a function)
+        if (Array.isArray(data) && data.length > 0) {
+          setChatList(data as ChatItem[]);
+          setSelectedChat(data[0].name); 
+        } else {
+            console.warn("API /api/messages/list mengembalikan data kosong atau bukan Array.");
+            setChatList(initialChatData);
+        }
+
+      } catch (err) {
+        console.error("Error fetching chats:", err);
+        setChatList(initialChatData);
+        if (initialChatData.length > 0) setSelectedChat(initialChatData[0].name);
+      }
+    }
+    loadChats();
+  }, []);
+  
+
+  // --- useEffect: Memuat Chat History (/api/messages/{name}) ---
+  useEffect(() => {
+    if (!selectedChat) return;
+    async function loadChatHistory() {
+      try {
+        const res = await fetch(`/api/messages/${selectedChat}`, {
+            headers: {
+                // Mengatasi Error 401
+                'Authorization': `Bearer ${VALID_JWT_TOKEN}`, 
+            },
+        });
+
+        // Menangani Error HTTP (400, 401, 500)
+        if (!res.ok) {
+            console.error(`Failed to load history for ${selectedChat}: HTTP status ${res.status}. Cek Route.js.`);
+            setChatHistory([]);
+            return;
+        }
+
+        const data = await res.json();
+
+        // Memastikan data adalah Array
+        if (Array.isArray(data)) {
+             setChatHistory(data as Message[]);
+        } else {
+             console.warn(`API /api/messages/${selectedChat} tidak mengembalikan Array.`);
+             setChatHistory([]);
+        }
+       
+      } catch (err) {
+        console.error("Error loading history:", err);
+        setChatHistory([]);
+      }
+    }
+    loadChatHistory();
+  }, [selectedChat]);
 
   return (
     <>
@@ -173,13 +274,16 @@ export default function MessagesPage() {
           </div>
 
           <div style={styles.chatList}>
-            {chatList.map((chat, index) => (
+            {/* Menggunakan Array.isArray untuk mencegah error "chatList.map is not a function" */}
+            {Array.isArray(chatList) && chatList.map((chat, index) => (
               <div
-                key={index}
-                style={{ ...styles.chatItem, ...(index === 0 && styles.chatItemActive) }}
+                key={chat.id || index}
+                style={{ ...styles.chatItem, ...(chat.name === selectedChat && styles.chatItemActive) }}
                 onClick={() => setSelectedChat(chat.name)}
               >
-                <div style={styles.chatAvatar}></div>
+                <div style={styles.chatAvatar}>
+                     {/* Tambahkan Gambar di sini jika tersedia */}
+                </div>
                 <div style={styles.chatInfo}>
                   <h3 style={styles.chatName}>{chat.name}</h3>
                   <p style={styles.chatMeta}>
@@ -204,10 +308,102 @@ export default function MessagesPage() {
                 </div>
               </div>
 
-              <div style={styles.emptyChat}></div>
+              <div style={{ flex: 1, padding: "20px", overflowY: "auto" }}>
+  {chatHistory.length === 0 && (
+    <p style={{ color: "#aaa", fontSize: "14px" }}>Start the conversation...</p>
+  )}
+
+  {/* Pastikan chatHistory adalah Array sebelum di-map */}
+  {Array.isArray(chatHistory) && chatHistory.map((msg: Message, i: number) => (
+    <div 
+      key={i} 
+      style={{ 
+        marginBottom: "18px",
+        // Gaya untuk pesan pengirim (You)
+        textAlign: msg.sender === 'You' ? 'right' : 'left'
+      }}
+    >
+      <div 
+         style={{ 
+            fontSize: "13px", 
+            fontWeight: "600", 
+            marginBottom: "6px",
+            textAlign: msg.sender === 'You' ? 'right' : 'left'
+         }}
+      >
+        {msg.sender === 'You' ? 'You' : selectedChat} 
+      </div>
+      <div
+        style={{
+          background: msg.sender === 'You' ? "#e357a3" : "#f5f5f5", // Warna berbeda untuk pesan Anda
+          color: msg.sender === 'You' ? "#fff" : "#111",
+          padding: "12px 16px",
+          borderRadius: "12px",
+          display: "inline-block",
+          maxWidth: "60%"
+        }}
+      >
+        {msg.text}
+      </div>
+    </div>
+  ))}
+</div>
 
               <div style={styles.messageInputContainer}>
-                <div style={styles.messageInputBar}></div>
+                <div style={styles.messageInputContainer}>
+  <form
+    onSubmit={async (e) => {
+      e.preventDefault();
+      const input = (e.target as HTMLFormElement).message.value;
+
+      if (!input.trim() || !selectedChat) return;
+
+      await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${VALID_JWT_TOKEN}`, 
+        },
+        body: JSON.stringify({
+          to: selectedChat,
+          text: input
+        })
+      });
+
+      (e.target as HTMLFormElement).message.value = "";
+
+      // Muat ulang history setelah kirim
+      const res = await fetch(`/api/messages/${selectedChat}`, {
+           headers: {
+            'Authorization': `Bearer ${VALID_JWT_TOKEN}`, 
+        },
+      });
+      
+      if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setChatHistory(data);
+          } else {
+            setChatHistory([]);
+          }
+      } else {
+          console.error("Failed to reload history after sending message.");
+          setChatHistory([]);
+      }
+    }}
+  >
+    <input
+      name="message"
+      placeholder="Type your message..."
+      style={{
+        width: "100%",
+        padding: "15px 20px",
+        borderRadius: "25px",
+        border: "1px solid #ddd",
+      }}
+    />
+  </form>
+</div>
               </div>
             </>
           ) : (

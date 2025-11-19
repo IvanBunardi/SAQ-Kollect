@@ -10,7 +10,7 @@ interface Post {
     _id: string;
     name: string;
     username: string;
-    profilePicture?: string;
+    profilePhoto?: string;
   };
   type: string;
   caption: string;
@@ -240,8 +240,8 @@ export default function Feeds() {
                 <div key={post._id} style={{...styles.feedCard, background: 'linear-gradient(135deg, #a5c8f0, #c8ddf0)'}}>
                   <div style={styles.feedHeader}>
                     <div style={styles.userAvatar}>
-                      {post.user?.profilePicture ? (
-                        <img src={post.user.profilePicture} alt={post.user.name} style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />
+                      {post.user?.profilePhoto ? (
+                        <img src={post.user.profilePhoto} alt={post.user.name} style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />
                       ) : (
                         <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '20px', fontWeight: 'bold'}}>
                           {post.user?.name?.[0]?.toUpperCase() || '?'}

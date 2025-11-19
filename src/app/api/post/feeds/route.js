@@ -38,7 +38,7 @@ export async function GET(request) {
       .limit(limit)
 
       // FIX: gunakan FULLNAME bukan name
-      .populate('user', 'fullname username profilePicture')
+      .populate('user', 'fullname username profilePhoto role')
       .populate('taggedPeople', 'fullname username profilePicture')
 
       // FIX COMMENTS user full info

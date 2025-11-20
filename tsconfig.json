@@ -45,7 +45,7 @@
     ".next\\dev/types/**/*.ts",
     ".next\\dev/types/**/*.ts",
     ".next/dev/types/**/*.ts"
-  ],
+, "src/app/api/messages/[name]/route.js"  ],
   "exclude": [
     "node_modules"
   ]

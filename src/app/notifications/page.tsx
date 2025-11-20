@@ -1,100 +1,82 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
-type NotificationType = 'like' | 'comment' | 'follow' | 'mention' | 'campaign';
+type NotificationType = 'like' | 'comment' | 'follow' | 'mention';
 
 interface Notification {
-  id: number;
+  id: string;
   type: NotificationType;
-  user: {
-    name: string;
-    avatar: string;
+  sender: {
+    id: string;
+    username: string;
+    fullname: string;
+    profilePhoto?: string;
+    profilePicture?: string;
   };
   message: string;
-  time: string;
+  post?: {
+    id: string;
+    caption: string;
+    mediaUrl: string;
+  } | null;
   isRead: boolean;
-  post?: string;
+  createdAt: string;
 }
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const [activeNav, setActiveNav] = useState('notifications');
   const [activeTab, setActiveTab] = useState<'all' | 'likes' | 'comments' | 'mentions' | 'follows'>('all');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const allNotifications: Notification[] = [
-    {
-      id: 1,
-      type: 'like',
-      user: { name: 'Felix Tan', avatar: '/assets/logo-icon.png' },
-      message: 'liked your post',
-      time: '5 minutes ago',
-      isRead: false,
-      post: 'Product showcase video',
-    },
-    {
-      id: 2,
-      type: 'comment',
-      user: { name: 'Sarah Johnson', avatar: '/assets/logo-icon.png' },
-      message: 'commented on your post: "This looks amazing!"',
-      time: '15 minutes ago',
-      isRead: false,
-      post: 'Brand collaboration',
-    },
-    {
-      id: 3,
-      type: 'follow',
-      user: { name: 'MJ TOYS', avatar: '/assets/logo-icon.png' },
-      message: 'started following you',
-      time: '1 hour ago',
-      isRead: false,
-    },
-    {
-      id: 4,
-      type: 'mention',
-      user: { name: 'Alex Chen', avatar: '/assets/logo-icon.png' },
-      message: 'mentioned you in a post',
-      time: '2 hours ago',
-      isRead: true,
-    },
-    {
-      id: 5,
-      type: 'campaign',
-      user: { name: 'Fashion Brand Co', avatar: '/assets/logo-icon.png' },
-      message: 'invited you to join a campaign',
-      time: '3 hours ago',
-      isRead: true,
-    },
-    {
-      id: 6,
-      type: 'like',
-      user: { name: 'Jenny Liu', avatar: '/assets/logo-icon.png' },
-      message: 'liked your post',
-      time: '5 hours ago',
-      isRead: true,
-      post: 'Tech review video',
-    },
-    {
-      id: 7,
-      type: 'comment',
-      user: { name: 'David Kim', avatar: '/assets/logo-icon.png' },
-      message: 'commented on your post: "Great content!"',
-      time: '1 day ago',
-      isRead: true,
-      post: 'Weekly vlog',
-    },
-    {
-      id: 8,
-      type: 'follow',
-      user: { name: 'Emma Wilson', avatar: '/assets/logo-icon.png' },
-      message: 'started following you',
-      time: '2 days ago',
-      isRead: true,
-    },
-  ];
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
-  const filteredNotifications = allNotifications.filter(notif => {
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch('/api/notifications', {
+        credentials: 'include'
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log('✅ Notifications loaded:', data.notifications.length);
+        setNotifications(data.notifications || []);
+      } else {
+        console.error('Failed to load notifications');
+        setNotifications([]);
+      }
+    } catch (err) {
+      console.error('❌ Error fetching notifications:', err);
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'PUT',
+        credentials: 'include'
+      });
+
+      if (res.ok) {
+        console.log('✅ All notifications marked as read');
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      }
+    } catch (err) {
+      console.error('❌ Error marking as read:', err);
+    }
+  };
+
+  const filteredNotifications = notifications.filter(notif => {
     if (activeTab === 'all') return true;
     if (activeTab === 'likes') return notif.type === 'like';
     if (activeTab === 'comments') return notif.type === 'comment';
@@ -102,6 +84,24 @@ export default function NotificationsPage() {
     if (activeTab === 'follows') return notif.type === 'follow';
     return true;
   });
+
+  const getAvatarUrl = (profilePhoto?: string, profilePicture?: string, fallbackName?: string) => {
+    if (profilePhoto && profilePhoto.trim() !== '') return profilePhoto;
+    if (profilePicture && profilePicture.trim() !== '') return profilePicture;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName || 'User')}&background=random&size=50&bold=true`;
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (seconds < 60) return `${seconds} seconds ago`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`;
+    return date.toLocaleDateString();
+  };
 
   const getNotificationIcon = (type: NotificationType) => {
     switch (type) {
@@ -142,15 +142,6 @@ export default function NotificationsPage() {
             </svg>
           </div>
         );
-      case 'campaign':
-        return (
-          <div style={{...styles.notifIcon, background: '#722ed1'}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2">
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-            </svg>
-          </div>
-        );
     }
   };
 
@@ -166,7 +157,6 @@ export default function NotificationsPage() {
         body { margin: 0; padding: 0; overflow-x: hidden; }
       `}</style>
 
-      {/* Background Circles */}
       <div style={styles.circles}>
         <div style={{...styles.circle, ...styles.blue, ...styles.huge, top: '-180px', left: '-180px'}}></div>
         <div style={{...styles.circle, ...styles.lightpink, ...styles.extrabig, top: '-120px', left: '120px'}}></div>
@@ -180,7 +170,6 @@ export default function NotificationsPage() {
       </div>
 
       <div style={styles.container}>
-        {/* Sidebar */}
         <div style={styles.sidebar}>
           <div style={styles.logo}>
             <Image src="/assets/logo-full.png" alt="Kollect Logo" width={200} height={106} style={{objectFit: 'contain'}} />
@@ -257,14 +246,14 @@ export default function NotificationsPage() {
           </div>
         </div>
 
-        {/* Main Content */}
         <div style={styles.mainContent}>
           <div style={styles.header}>
             <h1 style={styles.pageTitle}>Notifications</h1>
-            <button style={styles.markAllRead}>Mark all as read</button>
+            <button style={styles.markAllRead} onClick={handleMarkAllRead}>
+              Mark all as read
+            </button>
           </div>
 
-          {/* Tabs */}
           <div style={styles.tabs}>
             <button 
               style={{...styles.tab, ...(activeTab === 'all' && styles.tabActive)}}
@@ -298,46 +287,11 @@ export default function NotificationsPage() {
             </button>
           </div>
 
-          {/* Notifications List */}
-          <div style={styles.notificationsList}>
-            {filteredNotifications.map((notif) => (
-              <div 
-                key={notif.id} 
-                style={{
-                  ...styles.notificationItem,
-                  ...(notif.isRead ? {} : styles.notificationUnread)
-                }}
-              >
-                <div style={styles.notificationContent}>
-                  <div style={styles.notificationAvatar}>
-                    <Image 
-                      src={notif.user.avatar} 
-                      alt={notif.user.name} 
-                      width={50} 
-                      height={50} 
-                      style={{borderRadius: '50%', objectFit: 'cover'}}
-                    />
-                    {getNotificationIcon(notif.type)}
-                  </div>
-
-                  <div style={styles.notificationText}>
-                    <p style={styles.notificationMessage}>
-                      <strong>{notif.user.name}</strong> {notif.message}
-                    </p>
-                    {notif.post && (
-                      <p style={styles.notificationPost}>"{notif.post}"</p>
-                    )}
-                    <p style={styles.notificationTime}>{notif.time}</p>
-                  </div>
-                </div>
-
-                {!notif.isRead && <div style={styles.unreadDot}></div>}
-              </div>
-            ))}
-          </div>
-
-          {/* Empty State (if no notifications) */}
-          {filteredNotifications.length === 0 && (
+          {loading ? (
+            <div style={{textAlign: 'center', padding: '60px', fontSize: '16px', color: '#666'}}>
+              Loading notifications...
+            </div>
+          ) : filteredNotifications.length === 0 ? (
             <div style={styles.emptyState}>
               <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -345,6 +299,55 @@ export default function NotificationsPage() {
               </svg>
               <p style={styles.emptyText}>No notifications yet</p>
               <p style={styles.emptySubtext}>When you get notifications, they'll show up here</p>
+            </div>
+          ) : (
+            <div style={styles.notificationsList}>
+              {filteredNotifications.map((notif) => (
+                <div 
+                  key={notif.id} 
+                  style={{
+                    ...styles.notificationItem,
+                    ...(notif.isRead ? {} : styles.notificationUnread)
+                  }}
+                  onClick={() => {
+                    if (notif.post) {
+                      router.push(`/post/${notif.post.id}`);
+                    } else if (notif.type === 'follow') {
+                      router.push(`/profile/${notif.sender.username}`);
+                    }
+                  }}
+                >
+                  <div style={styles.notificationContent}>
+                    <div style={styles.notificationAvatar}>
+                      <img 
+                        src={getAvatarUrl(
+                          notif.sender.profilePhoto,
+                          notif.sender.profilePicture,
+                          notif.sender.fullname || notif.sender.username
+                        )}
+                        alt={notif.sender.fullname} 
+                        style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}}
+                        onError={(e: any) => {
+                          e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(notif.sender.fullname || 'User')}&background=random&size=50&bold=true`;
+                        }}
+                      />
+                      {getNotificationIcon(notif.type)}
+                    </div>
+
+                    <div style={styles.notificationText}>
+                      <p style={styles.notificationMessage}>
+                        <strong>{notif.sender.fullname || notif.sender.username}</strong> {notif.message}
+                      </p>
+                      {notif.post && (
+                        <p style={styles.notificationPost}>"{notif.post.caption?.substring(0, 50) || 'Post'}"</p>
+                      )}
+                      <p style={styles.notificationTime}>{formatTimeAgo(notif.createdAt)}</p>
+                    </div>
+                  </div>
+
+                  {!notif.isRead && <div style={styles.unreadDot}></div>}
+                </div>
+              ))}
             </div>
           )}
         </div>

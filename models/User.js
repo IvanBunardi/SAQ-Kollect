@@ -34,7 +34,7 @@ const UserSchema = new mongoose.Schema(
       default: 'user',
     },
     profilePhoto: {
-      type: String, // Base64 string or URL
+      type: String,
       default: null,
     },
     bio: {
@@ -56,15 +56,23 @@ const UserSchema = new mongoose.Schema(
       enum: ['Tech', 'Fashion', 'Food', 'Travel', 'Lifestyle', 'Gaming', 'Beauty', 'Fitness', 'Business', 'Other'],
       default: 'Tech',
     },
+    // ✅ TAMBAHAN BARU - FOLLOWERS & FOLLOWING
+    followers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }],
+    following: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }],
     isActive: {
       type: Boolean,
       default: true,
     },
   },
   {
-    timestamps: true, // Automatically adds createdAt and updatedAt
+    timestamps: true,
   }
 );
 
-// Prevent model recompilation in development
 export default mongoose.models.User || mongoose.model('User', UserSchema);

@@ -29,6 +29,10 @@ export default function Feeds() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // ✅ State untuk prevent double click
+  const [likingPosts, setLikingPosts] = useState<Set<string>>(new Set());
+  const [savingPosts, setSavingPosts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchPosts();
@@ -40,7 +44,7 @@ export default function Feeds() {
       
       const res = await fetch('/api/post/feeds?page=1&limit=20', {
         method: 'GET',
-        credentials: 'include', // PENTING: Include cookies
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -66,6 +70,125 @@ export default function Feeds() {
       setError('Network error');
       setLoading(false);
     }
+  };
+
+  // ✅ HANDLE LIKE WITH DEBOUNCE
+  const handleLike = async (postId: string, isLiked: boolean) => {
+    // Cek kalau sedang proses
+    if (likingPosts.has(postId)) {
+      console.log('⏳ Already processing like for this post...');
+      return;
+    }
+
+    try {
+      // Tandai sedang proses
+      setLikingPosts(prev => new Set(prev).add(postId));
+
+      const method = isLiked ? 'DELETE' : 'POST';
+      
+      console.log(`${isLiked ? '💔 Unliking' : '❤️ Liking'} post ${postId}...`);
+      
+      const res = await fetch(`/api/post/${postId}/like`, {
+        method,
+        credentials: 'include',
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        console.log('✅', data.message);
+        
+        // Update state langsung
+        setPosts(prevPosts => 
+          prevPosts.map(post => 
+            post._id === postId 
+              ? { 
+                  ...post, 
+                  isLikedByUser: !isLiked,
+                  likesCount: data.likesCount 
+                }
+              : post
+          )
+        );
+      } else {
+        // Jangan tampilkan error kalau "Already liked"
+        if (data.message !== "Already liked this post") {
+          console.log('⚠️', data.message);
+        }
+      }
+    } catch (err) {
+      console.error('❌ Error liking post:', err);
+    } finally {
+      // Hapus dari processing setelah selesai
+      setLikingPosts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(postId);
+        return newSet;
+      });
+    }
+  };
+
+  // ✅ HANDLE SAVE WITH DEBOUNCE
+  const handleSave = async (postId: string, isSaved: boolean) => {
+    // Cek kalau sedang proses
+    if (savingPosts.has(postId)) {
+      console.log('⏳ Already processing save for this post...');
+      return;
+    }
+
+    try {
+      // Tandai sedang proses
+      setSavingPosts(prev => new Set(prev).add(postId));
+
+      const method = isSaved ? 'DELETE' : 'POST';
+      
+      console.log(`${isSaved ? '❌ Unsaving' : '💾 Saving'} post ${postId}...`);
+      
+      const res = await fetch(`/api/post/${postId}/save`, {
+        method,
+        credentials: 'include',
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        console.log('✅', data.message);
+        
+        // Update state langsung
+        setPosts(prevPosts => 
+          prevPosts.map(post => 
+            post._id === postId 
+              ? { 
+                  ...post, 
+                  isSavedByUser: !isSaved,
+                  savesCount: data.savesCount 
+                }
+              : post
+          )
+        );
+      } else {
+        // Jangan tampilkan error kalau "Already saved"
+        if (data.message !== "Already saved this post") {
+          console.log('⚠️', data.message);
+        }
+      }
+    } catch (err) {
+      console.error('❌ Error saving post:', err);
+    } finally {
+      // Hapus dari processing setelah selesai
+      setSavingPosts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(postId);
+        return newSet;
+      });
+    }
+  };
+
+  // ✅ HANDLE COMMENT
+  const handleComment = (postId: string) => {
+    console.log('💬 Open comment modal for post:', postId);
+    // TODO: Buka modal untuk comment
+    window.location.href = `/post/${postId}`;
   };
 
   const formatTimeAgo = (dateString: string) => {
@@ -261,7 +384,6 @@ export default function Feeds() {
                         </p>
                       </Link>
                     </div>
-
                   </div>
                   
                   {post.caption && (
@@ -288,20 +410,58 @@ export default function Feeds() {
                   
                   <div style={styles.feedActions}>
                     <div style={styles.actionButtons}>
-                      <button style={styles.actionBtn}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill={post.isLikedByUser ? '#e74c3c' : 'none'} stroke="currentColor" strokeWidth="2">
+                      {/* ✅ LIKE BUTTON */}
+                      <button 
+                        style={{
+                          ...styles.actionBtn,
+                          opacity: likingPosts.has(post._id) ? 0.5 : 1,
+                          cursor: likingPosts.has(post._id) ? 'wait' : 'pointer'
+                        }}
+                        onClick={() => handleLike(post._id, post.isLikedByUser)}
+                        disabled={likingPosts.has(post._id)}
+                      >
+                        <svg 
+                          width="20" 
+                          height="20" 
+                          viewBox="0 0 24 24" 
+                          fill={post.isLikedByUser ? '#e74c3c' : 'none'} 
+                          stroke="currentColor" 
+                          strokeWidth="2"
+                        >
                           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                         </svg>
                         <span style={{fontSize: '13px', marginLeft: '4px'}}>{post.likesCount}</span>
                       </button>
-                      <button style={styles.actionBtn}>
+
+                      {/* ✅ COMMENT BUTTON */}
+                      <button 
+                        style={styles.actionBtn}
+                        onClick={() => handleComment(post._id)}
+                      >
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
                         <span style={{fontSize: '13px', marginLeft: '4px'}}>{post.commentsCount}</span>
                       </button>
-                      <button style={styles.actionBtn}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill={post.isSavedByUser ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+
+                      {/* ✅ SAVE BUTTON */}
+                      <button 
+                        style={{
+                          ...styles.actionBtn,
+                          opacity: savingPosts.has(post._id) ? 0.5 : 1,
+                          cursor: savingPosts.has(post._id) ? 'wait' : 'pointer'
+                        }}
+                        onClick={() => handleSave(post._id, post.isSavedByUser)}
+                        disabled={savingPosts.has(post._id)}
+                      >
+                        <svg 
+                          width="20" 
+                          height="20" 
+                          viewBox="0 0 24 24" 
+                          fill={post.isSavedByUser ? 'currentColor' : 'none'} 
+                          stroke="currentColor" 
+                          strokeWidth="2"
+                        >
                           <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
                         </svg>
                       </button>

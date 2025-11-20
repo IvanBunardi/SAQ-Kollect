@@ -1,232 +1,137 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 
-// Definisikan tipe untuk Chat Item (sesuai data yang dikembalikan API /list)
-interface ChatItem {
-  id: string; 
-  name: string;
-  category: string;
-  followers: string;
-  profilePhoto?: string;
-}
+export default function ComposeMessage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const recipientUsername = searchParams.get('to');
 
-// Definisikan tipe untuk Message
-interface Message {
-    sender: string;
-    text: string;
-}
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
 
-// Data simulasi (Fallback jika API gagal total)
-const initialChatData: ChatItem[] = [
-  { "id": "felix", "name": "Felix Tan", "category": "Tech", "followers": "143K Followers" },
-];
-
-
-export default function MessagesPage() {
-  const [activeNav, setActiveNav] = useState('messages');
-  const [activeTab, setActiveTab] = useState<'chats' | 'jobs'>('chats');
-  
-  // ✅ FIX: Pindahkan token ke state
-  const [token, setToken] = useState<string | null>(null);
-  
-  // Deklarasi state yang benar dan aman
-  const [chatList, setChatList] = useState<ChatItem[]>(initialChatData);
-  const [chatHistory, setChatHistory] = useState<Message[]>([]);
-  const [selectedChat, setSelectedChat] = useState(initialChatData[0]?.name || '');
-  const [showAcceptedModal, setShowAcceptedModal] = useState(false);
-  
-  // ✅ FIX: Load token from localStorage on mount
-  useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    setToken(storedToken);
-    console.log('🔑 Token loaded:', storedToken ? storedToken.substring(0, 20) + '...' : 'null');
-  }, []);
-
-  const handleAccept = () => {
-    setShowAcceptedModal(true);
-  };
-
-  const handleDecline = () => {
-    console.log('Declined');
-  };
-
-  const handleChatFromModal = () => {
-    setShowAcceptedModal(false);
-    setActiveTab('chats');
-  };
-
-
-  // --- useEffect: Memuat Chat List (/api/messages/list) ---
-  useEffect(() => {
-    if (!token) return; // ✅ Wait for token to load
-    
-    async function loadChats() {
-      try {
-        const res = await fetch('/api/messages/list', {
-            headers: {
-                'Authorization': `Bearer ${token}`, 
-            },
-        });
-        
-        // Menangani Error HTTP (401 atau 500)
-        if (!res.ok) {
-            console.error(`Failed to load chats: HTTP status ${res.status}. Cek token JWT.`);
-            setChatList(initialChatData);
-            if (initialChatData.length > 0) setSelectedChat(initialChatData[0].name);
-            return;
-        }
-
-        const data = await res.json();
-        
-        // Memastikan data adalah Array
-        if (Array.isArray(data) && data.length > 0) {
-          setChatList(data as ChatItem[]);
-          setSelectedChat(data[0].name); 
-        } else {
-            console.warn("API /api/messages/list mengembalikan data kosong atau bukan Array.");
-            setChatList(initialChatData);
-        }
-
-      } catch (err) {
-        console.error("Error fetching chats:", err);
-        setChatList(initialChatData);
-        if (initialChatData.length > 0) setSelectedChat(initialChatData[0].name);
-      }
+  const handleSendMessage = async () => {
+    if (!message.trim()) {
+      setError('Message cannot be empty');
+      return;
     }
-    loadChats();
-  }, [token]); // ✅ Run when token changes
-  
 
-  // --- useEffect: Memuat Chat History (/api/messages/{name}) ---
-  useEffect(() => {
-    if (!selectedChat || !token) return; // ✅ Wait for token
-    
-    async function loadChatHistory() {
-      try {
-        // 🌟 PERBAIKAN UTAMA: Menggunakan encodeURIComponent untuk menangani spasi di nama chat
-        const encodedChatName = encodeURIComponent(selectedChat);
-        
-        const res = await fetch(`/api/messages/${encodedChatName}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`, 
-            },
-        });
+    setSending(true);
+    setError('');
 
-        if (!res.ok) {
-            // Log error yang lebih spesifik
-            console.error(`Failed to load history for ${selectedChat}: HTTP status ${res.status}`);
-            setChatHistory([]);
-            return;
-        }
+    try {
+      const res = await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          recipientUsername,
+          content: message,
+        }),
+      });
 
-        const data = await res.json();
+      const data = await res.json();
 
-        if (Array.isArray(data)) {
-             setChatHistory(data as Message[]);
-        } else {
-             console.warn(`API /api/messages/${selectedChat} tidak mengembalikan Array.`);
-             setChatHistory([]);
-        }
-       
-      } catch (err) {
-        console.error("Error loading history:", err);
-        setChatHistory([]);
+      if (res.ok) {
+        console.log('✅ Message sent successfully');
+        router.push('/messages');
+      } else {
+        setError(data.message || 'Failed to send message');
       }
+    } catch (err) {
+      console.error('❌ Error sending message:', err);
+      setError('Failed to send message');
+    } finally {
+      setSending(false);
     }
-    loadChatHistory();
-  }, [selectedChat, token]); // ✅ Run when selectedChat or token changes
+  };
 
   return (
     <>
       <style jsx global>{`
         @keyframes float {
-          0%   { transform: translateY(0px) translateX(0px) rotate(0deg); }
-          33%  { transform: translateY(-20px) translateX(10px) rotate(5deg); }
-          66%  { transform: translateY(15px) translateX(-10px) rotate(-3deg); }
+          0% { transform: translateY(0px) translateX(0px) rotate(0deg); }
+          33% { transform: translateY(-20px) translateX(10px) rotate(5deg); }
+          66% { transform: translateY(15px) translateX(-10px) rotate(-3deg); }
           100% { transform: translateY(0px) translateX(0px) rotate(0deg); }
         }
         body { margin: 0; padding: 0; overflow-x: hidden; }
       `}</style>
 
-      {/* Background Circles */}
+      {/* Background circles */}
       <div style={styles.circles}>
-        <div style={{ ...styles.circle, ...styles.blue, ...styles.huge, top: '-180px', left: '-180px' }}></div>
-        <div style={{ ...styles.circle, ...styles.lightpink, ...styles.extrabig, top: '-120px', left: '120px' }}></div>
-        <div style={{ ...styles.circle, ...styles.lightblue, ...styles.big, top: '50px', left: '150px' }}></div>
-        <div style={{ ...styles.circle, ...styles.blue, ...styles.huge, bottom: '-150px', left: '-120px' }}></div>
-        <div style={{ ...styles.circle, ...styles.pink, ...styles.extrabig, bottom: '-80px', left: '180px' }}></div>
+        <div style={{...styles.circle, ...styles.blue, ...styles.huge, top: '-180px', left: '-180px'}}></div>
+        <div style={{...styles.circle, ...styles.lightpink, ...styles.extrabig, top: '-120px', left: '120px'}}></div>
+        <div style={{...styles.circle, ...styles.blue, ...styles.huge, bottom: '-150px', left: '-120px'}}></div>
+        <div style={{...styles.circle, ...styles.pink, ...styles.extrabig, bottom: '-80px', left: '180px'}}></div>
       </div>
 
       <div style={styles.container}>
         {/* Sidebar */}
         <div style={styles.sidebar}>
           <div style={styles.logo}>
-            <Image src="/assets/logo-full.png" alt="Kollect Logo" width={200} height={106} style={{ objectFit: 'contain' }} />
+            <Image src="/assets/logo-full.png" alt="Kollect Logo" width={200} height={106} style={{objectFit: 'contain'}} />
           </div>
-
+          
           <nav style={styles.navMenu}>
-            <Link href="/feeds" style={{ ...styles.navItem, ...(activeNav === 'home' && styles.navItemActive) }}>
+            <Link href="/feeds" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
               </svg>
               <span>Home</span>
             </Link>
-
-            <Link href="/search" style={{ ...styles.navItem, ...(activeNav === 'search' && styles.navItemActive) }}>
+            <Link href="/search" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
               </svg>
               <span>Search</span>
             </Link>
-
-            <Link href="/explore" style={{ ...styles.navItem, ...(activeNav === 'explore' && styles.navItemActive) }}>
+            <Link href="/explore" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+                <circle cx="12" cy="12" r="10"/>
+                <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
               </svg>
               <span>Explore</span>
             </Link>
-
-            <Link href="/messages" style={{ ...styles.navItem, ...(activeNav === 'messages' && styles.navItemActive) }}>
+            <Link href="/messages" style={{...styles.navItem, ...styles.navItemActive}}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
               <span>Messages</span>
             </Link>
-
-            <Link href="/notifications" style={{ ...styles.navItem, ...(activeNav === 'notifications' && styles.navItemActive) }}>
+            <Link href="/notifications" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
               </svg>
               <span>Notifications</span>
             </Link>
-
-            <Link href="/create" style={{ ...styles.navItem, ...(activeNav === 'create' && styles.navItemActive) }}>
+            <Link href="/create" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
               <span>Create</span>
             </Link>
-
-            <Link href="/profile" style={{ ...styles.navItem, ...(activeNav === 'profile' && styles.navItemActive) }}>
+            <Link href="/profile" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
               </svg>
               <span>Profile</span>
             </Link>
-
-            <Link href="/work" style={{ ...styles.navItem, ...(activeNav === 'work' && styles.navItemActive) }}>
+            <Link href="/work" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
               </svg>
               <span>Work</span>
             </Link>
@@ -239,295 +144,89 @@ export default function MessagesPage() {
             </Link>
           </nav>
 
-          {/* Decorative Circles */}
           <div style={styles.sidebarDecoration}>
-            <div style={{ ...styles.sidebarCircle, width: '100px', height: '100px', bottom: '20px', left: '-20px', background: '#4371f0' }}></div>
-            <div style={{ ...styles.sidebarCircle, width: '80px', height: '80px', bottom: '80px', left: '30px', background: '#e357a3', animationDelay: '2s' }}></div>
+            <div style={{...styles.sidebarCircle, width: '100px', height: '100px', bottom: '20px', left: '-20px', background: '#4371f0'}}></div>
+            <div style={{...styles.sidebarCircle, width: '80px', height: '80px', bottom: '80px', left: '30px', background: '#e357a3'}}></div>
           </div>
         </div>
 
-        {/* Messages Panel */}
-        <div style={styles.messagesPanel}>
-          <div style={styles.messagesPanelHeader}>
-            <h2 style={styles.username}>MJ TOYS</h2>
-            <div style={styles.headerIcon}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
+        {/* Main Content */}
+        <div style={styles.mainContent}>
+          <div style={{maxWidth: '600px', margin: '0 auto'}}>
+            <h1 style={{fontSize: '32px', fontWeight: '700', marginBottom: '8px'}}>
+              New Message
+            </h1>
+            <p style={{fontSize: '16px', color: '#666', marginBottom: '30px'}}>
+              Send a message to <strong>@{recipientUsername}</strong>
+            </p>
+
+            {error && (
+              <div style={{
+                background: '#fee',
+                border: '1px solid #fcc',
+                borderRadius: '12px',
+                padding: '14px',
+                color: '#c33',
+                marginBottom: '20px'
+              }}>
+                {error}
+              </div>
+            )}
+
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Type your message..."
+              style={{
+                width: '100%',
+                minHeight: '200px',
+                padding: '16px',
+                border: '2px solid #e0e0e0',
+                borderRadius: '12px',
+                fontSize: '15px',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                outline: 'none',
+                marginBottom: '20px'
+              }}
+            />
+
+            <div style={{display: 'flex', gap: '12px', justifyContent: 'flex-end'}}>
+              <button
+                style={{
+                  padding: '12px 28px',
+                  background: '#f0f2f5',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+                onClick={() => router.back()}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  padding: '12px 28px',
+                  background: '#4371f0',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  cursor: sending ? 'wait' : 'pointer',
+                  opacity: sending ? 0.6 : 1
+                }}
+                onClick={handleSendMessage}
+                disabled={sending}
+              >
+                {sending ? 'Sending...' : 'Send Message'}
+              </button>
             </div>
           </div>
-
-          <div style={styles.searchBar}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
-            <input type="text" placeholder="search" style={styles.searchInput} />
-          </div>
-
-          <div style={styles.tabsContainer}>
-            <button 
-              style={{ ...styles.tab, ...(activeTab === 'chats' && styles.tabActive), ...(activeTab !== 'chats' && styles.tabInactive) }} 
-              onClick={() => setActiveTab('chats')}
-            >
-              Chats
-            </button>
-            <button 
-              style={{ ...styles.tab, ...(activeTab === 'jobs' && styles.tabActive), ...(activeTab !== 'jobs' && styles.tabInactive) }} 
-              onClick={() => setActiveTab('jobs')}
-            >
-              Jobs
-            </button>
-          </div>
-
-          <div style={styles.chatList}>
-            {Array.isArray(chatList) && chatList.map((chat, index) => (
-              <div
-                key={chat.id || index}
-                style={{ ...styles.chatItem, ...(chat.name === selectedChat && styles.chatItemActive) }}
-                onClick={() => setSelectedChat(chat.name)}
-              >
-                <div style={styles.chatAvatar}></div>
-                <div style={styles.chatInfo}>
-                  <h3 style={styles.chatName}>{chat.name}</h3>
-                  <p style={styles.chatMeta}>
-                    {chat.category} | {chat.followers}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Chat Content / Jobs Form */}
-        <div style={styles.chatContent}>
-          {activeTab === 'chats' ? (
-            <>
-              <div style={styles.chatHeader}>
-                <div style={styles.chatHeaderLeft}>
-                  <div style={styles.chatHeaderAvatar}>
-                    <Image src="/assets/fotomes.png" alt={selectedChat} width={50} height={50} style={{ borderRadius: '50%', objectFit: 'cover' }} />
-                  </div>
-                  <h2 style={styles.chatHeaderName}>{selectedChat}</h2>
-                </div>
-              </div>
-
-              <div style={{ flex: 1, padding: "20px", overflowY: "auto" }}>
-                {chatHistory.length === 0 && (
-                  <p style={{ color: "#aaa", fontSize: "14px" }}>Start the conversation...</p>
-                )}
-
-                {Array.isArray(chatHistory) && chatHistory.map((msg: Message, i: number) => (
-                  <div 
-                    key={i} 
-                    style={{ 
-                      marginBottom: "18px",
-                      textAlign: msg.sender === 'You' ? 'right' : 'left'
-                    }}
-                  >
-                    <div 
-                       style={{ 
-                          fontSize: "13px", 
-                          fontWeight: "600", 
-                          marginBottom: "6px",
-                          textAlign: msg.sender === 'You' ? 'right' : 'left'
-                       }}
-                    >
-                      {msg.sender === 'You' ? 'You' : selectedChat} 
-                    </div>
-                    <div
-                      style={{
-                        background: msg.sender === 'You' ? "#e357a3" : "#f5f5f5",
-                        color: msg.sender === 'You' ? "#fff" : "#111",
-                        padding: "12px 16px",
-                        borderRadius: "12px",
-                        display: "inline-block",
-                        maxWidth: "60%"
-                      }}
-                    >
-                      {msg.text}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={styles.messageInputContainer}>
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    const input = (e.target as HTMLFormElement).message.value;
-
-                    if (!input.trim() || !selectedChat || !token) return;
-
-                    await fetch('/api/messages/send', {
-                      method: 'POST',
-                      headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${token}`, 
-                      },
-                      body: JSON.stringify({
-                        to: selectedChat,
-                        text: input
-                      })
-                    });
-
-                    (e.target as HTMLFormElement).message.value = "";
-
-                    // Reload history after sending
-                    const encodedChatName = encodeURIComponent(selectedChat);
-                    const res = await fetch(`/api/messages/${encodedChatName}`, {
-                         headers: {
-                          'Authorization': `Bearer ${token}`, 
-                      },
-                    });
-                    
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (Array.isArray(data)) {
-                          setChatHistory(data);
-                        } else {
-                          setChatHistory([]);
-                        }
-                    } else {
-                        console.error("Failed to reload history after sending message.");
-                        setChatHistory([]);
-                    }
-                  }}
-                >
-                  <input
-                    name="message"
-                    placeholder="Type your message..."
-                    style={{
-                      width: "100%",
-                      padding: "15px 20px",
-                      borderRadius: "25px",
-                      border: "1px solid #ddd",
-                    }}
-                  />
-                </form>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Jobs Form (unchanged) */}
-              <div style={styles.jobsHeader}>
-                <div style={styles.jobsHeaderLeft}>
-                  <div style={styles.jobsAvatar}>
-                    <Image src="/assets/fotomes.png" alt="Felix Tan" width={50} height={50} style={{ borderRadius: '50%', objectFit: 'cover' }} />
-                  </div>
-                  <h2 style={styles.jobsHeaderName}>Felix Tan</h2>
-                </div>
-              </div>
-
-              <div style={styles.jobsFormContainer}>
-                <div style={styles.jobsForm}>
-                  <div style={styles.formGroup}>
-                    <label style={styles.formLabel}>Name</label>
-                    <input type="text" style={styles.formInput} />
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.formLabel}>Industry</label>
-                    <input type="text" style={styles.formInput} />
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.formLabel}>Why are you interested in this</label>
-                    <textarea style={styles.formTextarea} rows={3}></textarea>
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.formLabel}>Your Content Idea / Concept</label>
-                    <textarea style={styles.formTextarea} rows={3}></textarea>
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.formLabel}>Expected Fee Range</label>
-                    <input type="text" style={styles.formInput} />
-                  </div>
-
-                  <div style={styles.formRow}>
-                    <div style={styles.formGroupHalf}>
-                      <label style={styles.formLabel}>Availability Date</label>
-                      <input type="text" style={styles.formInput} />
-                    </div>
-                    <div style={styles.formGroupHalf}>
-                      <label style={styles.formLabel}>Number of Deliverables You</label>
-                      <input type="text" style={styles.formInput} />
-                    </div>
-                  </div>
-
-                  <div style={styles.checkboxGrid}>
-                    <label style={styles.checkboxLabel}>
-                      <input type="checkbox" style={styles.checkbox} />
-                      <span style={styles.checkboxText}>IG Feeds</span>
-                    </label>
-                    <label style={styles.checkboxLabel}>
-                      <input type="checkbox" style={styles.checkbox} />
-                      <span style={styles.checkboxText}>IG Reels</span>
-                    </label>
-                    <label style={styles.checkboxLabel}>
-                      <input type="checkbox" style={styles.checkbox} />
-                      <span style={styles.checkboxText}>IG Story</span>
-                    </label>
-                    <label style={styles.checkboxLabel}>
-                      <input type="checkbox" style={styles.checkbox} />
-                      <span style={styles.checkboxText}>TikTok</span>
-                    </label>
-                    <label style={styles.checkboxLabel}>
-                      <input type="checkbox" style={styles.checkbox} />
-                      <span style={styles.checkboxText}>YouTube</span>
-                    </label>
-                    <label style={styles.checkboxLabel}>
-                      <input type="checkbox" style={styles.checkbox} />
-                      <span style={styles.checkboxText}>X (Twitter)</span>
-                    </label>
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.formLabel}>Past Relevant Campaigns</label>
-                    <textarea style={styles.formTextarea} rows={3} placeholder="🔗"></textarea>
-                  </div>
-
-                  <div style={styles.formActions}>
-                    <button style={styles.declineButton} onClick={handleDecline}>Decline</button>
-                    <button style={styles.acceptButton} onClick={handleAccept}>Accept</button>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
         </div>
       </div>
-
-      {/* Accepted Modal */}
-      {showAcceptedModal && (
-        <>
-          <div style={styles.modalOverlay} onClick={() => setShowAcceptedModal(false)}></div>
-          <div style={styles.modal}>
-            <h2 style={styles.modalTitle}>Accepted!</h2>
-            <div style={styles.checkmarkContainer}>
-              <svg width="80" height="80" viewBox="0 0 100 100" style={styles.checkmark}>
-                <polyline 
-                  points="20,50 40,70 80,30" 
-                  fill="none" 
-                  stroke="#22c55e" 
-                  strokeWidth="8" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <button style={styles.chatButton} onClick={handleChatFromModal}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" style={{ marginRight: '8px' }}>
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              Chat
-            </button>
-          </div>
-        </>
-      )}
     </>
   );
 }
@@ -538,272 +237,23 @@ const styles: { [key: string]: React.CSSProperties } = {
   pink: { background: '#e357a3' },
   lightpink: { background: '#f4a3c8' },
   blue: { background: '#4371f0' },
-  lightblue: { background: '#a5c8f0' },
   huge: { width: '350px', height: '350px' },
   extrabig: { width: '280px', height: '280px' },
-  big: { width: '200px', height: '200px' },
-
   container: { display: 'flex', minHeight: '100vh', background: 'white' },
-
   sidebar: {
-    width: '260px',
-    background: '#fafbfc',
-    position: 'fixed',
-    height: '100vh',
-    left: 0,
-    top: 0,
-    zIndex: 100,
-    padding: '30px 20px',
-    display: 'flex',
-    flexDirection: 'column',
-    borderRight: '1px solid #e8e8e8',
+    width: '260px', background: '#fafbfc', position: 'fixed', height: '100vh',
+    left: 0, top: 0, zIndex: 100, padding: '30px 20px', display: 'flex',
+    flexDirection: 'column', borderRight: '1px solid #e8e8e8'
   },
   logo: { marginBottom: '50px', paddingLeft: '10px' },
   navMenu: { display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 },
   navItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '14px',
-    padding: '14px 18px',
-    borderRadius: '12px',
-    color: '#666',
-    textDecoration: 'none',
-    fontSize: '15px',
-    fontWeight: '500',
-    background: '#e8eaed',
-    transition: 'all 0.2s ease',
+    display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px',
+    borderRadius: '12px', color: '#666', textDecoration: 'none', fontSize: '15px',
+    fontWeight: '500', background: '#e8eaed', transition: 'all 0.2s ease', cursor: 'pointer'
   },
   navItemActive: { background: '#4371f0', color: 'white' },
-  sidebarDecoration: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '200px', overflow: 'hidden' },
+  sidebarDecoration: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '200px', overflow: 'hidden', pointerEvents: 'none' },
   sidebarCircle: { position: 'absolute', borderRadius: '50%', opacity: 0.5, animation: 'float 12s infinite ease-in-out' },
-
-  messagesPanel: {
-    width: '420px',
-    marginLeft: '300px',
-    background: '#ffffff',
-    borderRight: '1px solid #f0f0f0',
-    height: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'fixed',
-    zIndex: 50,
-  },
-  messagesPanelHeader: {
-    padding: '25px 30px 15px 30px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottom: '1px solid #f5f5f5',
-  },
-  username: { margin: 0, fontSize: '20px', fontWeight: '600', color: '#111' },
-  headerIcon: {
-    width: '40px',
-    height: '40px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    borderRadius: '10px',
-  },
-  searchBar: { margin: '15px 30px', display: 'flex', alignItems: 'center', gap: '12px', background: '#f5f7fa', borderRadius: '12px', padding: '12px 18px' },
-  searchInput: { flex: 1, border: 'none', background: 'transparent', fontSize: '14px', color: '#333', outline: 'none' },
-  tabsContainer: { display: 'flex', padding: '0 30px 15px 30px', gap: '10px' },
-  tab: {
-    padding: '10px 28px',
-    background: 'transparent',
-    border: 'none',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    borderRadius: '10px',
-    transition: 'all 0.2s',
-  },
-  tabActive: { background: '#e357a3', color: 'white' },
-  tabInactive: { color: '#999', background: 'transparent' },
-  chatList: { flex: 1, overflowY: 'auto', paddingBottom: '20px' },
-  chatItem: { display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 30px', borderLeft: '3px solid transparent', cursor: 'pointer' },
-  chatItemActive: { background: '#f9f9f9', borderLeft: '3px solid #e357a3' },
-  chatAvatar: { width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(135deg, #ccc, #888)' },
-  chatInfo: { flex: 1 },
-  chatName: { margin: 0, fontSize: '15px', fontWeight: '600', color: '#111', marginBottom: '4px' },
-  chatMeta: { margin: 0, fontSize: '13px', color: '#666' },
-
-  chatContent: { flex: 1, marginLeft: '700px', display: 'flex', flexDirection: 'column', background: 'white' },
-  chatHeader: { padding: '25px 40px', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center' },
-  chatHeaderLeft: { display: 'flex', alignItems: 'center', gap: '16px' },
-  chatHeaderAvatar: { width: '50px', height: '50px', borderRadius: '50%', overflow: 'hidden' },
-  chatHeaderName: { margin: 0, fontSize: '18px', fontWeight: '600', color: '#111' },
-  emptyChat: { flex: 1, background: '#fafafa' },
-  messageInputContainer: { padding: '25px 40px', borderTop: '1px solid #f0f0f0' },
-  messageInputBar: { height: '50px', background: '#f5f7fa', borderRadius: '25px' },
-
-  jobsHeader: {
-    padding: '25px 40px',
-    borderBottom: '1px solid #f0f0f0',
-    display: 'flex',
-    alignItems: 'center',
-    background: 'white',
-  },
-  jobsHeaderLeft: { display: 'flex', alignItems: 'center', gap: '16px' },
-  jobsAvatar: { width: '50px', height: '50px', borderRadius: '50%', overflow: 'hidden' },
-  jobsHeaderName: { margin: 0, fontSize: '18px', fontWeight: '600', color: '#111' },
-  
-  jobsFormContainer: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '30px 40px',
-    background: '#fafafa',
-  },
-  jobsForm: {
-  background: '#f7f9fc', 
-  borderRadius: '16px',
-  padding: '30px',
-  maxWidth: '900px',
-  border: '1px solid #d0d6df', 
-},
-  formGroup: {
-    marginBottom: '20px',
-  },
-  formGroupHalf: {
-    flex: 1,
-  },
-  formRow: {
-    display: 'flex',
-    gap: '16px',
-    marginBottom: '20px',
-  },
-  formLabel: {
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#111',
-    marginBottom: '8px',
-  },
-  formInput: {
-    width: '100%',
-    padding: '12px 16px',
-    border: '1px solid #e0e0e0',
-    borderRadius: '8px',
-    fontSize: '14px',
-    color: '#333',
-    outline: 'none',
-    boxSizing: 'border-box',
-  },
-  formTextarea: {
-    width: '100%',
-    padding: '12px 16px',
-    border: '1px solid #e0e0e0',
-    borderRadius: '8px',
-    fontSize: '14px',
-    color: '#333',
-    outline: 'none',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-    boxSizing: 'border-box',
-  },
-  checkboxGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '12px',
-    marginBottom: '20px',
-  },
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    padding: '12px 16px',
-    border: '1px solid #e0e0e0',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-  checkbox: {
-    width: '18px',
-    height: '18px',
-    cursor: 'pointer',
-  },
-  checkboxText: {
-    fontSize: '14px',
-    color: '#333',
-    fontWeight: '500',
-  },
-  formActions: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '12px',
-    marginTop: '30px',
-  },
-  declineButton: {
-    padding: '12px 32px',
-    background: '#6b7280',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '15px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-  acceptButton: {
-    padding: '12px 32px',
-    background: '#e357a3',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '15px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(0, 0, 0, 0.5)',
-    zIndex: 999,
-  },
-  modal: {
-    position: 'fixed',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    background: 'white',
-    borderRadius: '16px',
-    padding: '40px 50px',
-    zIndex: 1000,
-    textAlign: 'center',
-    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
-    minWidth: '320px',
-  },
-  modalTitle: {
-    margin: '0 0 30px 0',
-    fontSize: '24px',
-    fontWeight: '700',
-    color: '#111',
-  },
-  checkmarkContainer: {
-    marginBottom: '30px',
-    display: 'flex',
-    justifyContent: 'center',
-  },
-  checkmark: {
-    display: 'block',
-  },
-  chatButton: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '12px 40px',
-    background: '#e357a3',
-    color: 'white',
-    border: 'none',
-    borderRadius: '25px',
-    fontSize: '15px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
+  mainContent: { flex: 1, marginLeft: '260px', padding: '40px 60px', zIndex: 10 },
 };

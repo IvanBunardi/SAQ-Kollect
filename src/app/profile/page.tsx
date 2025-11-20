@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,11 +5,33 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+interface Post {
+  _id: string;
+  user: {
+    _id: string;
+    name: string;
+    username: string;
+    profilePhoto?: string;
+  };
+  type: string;
+  caption: string;
+  mediaUrl: string;
+  location?: string;
+  likesCount: number;
+  commentsCount: number;
+  savesCount: number;
+  isLikedByUser: boolean;
+  isSavedByUser: boolean;
+  createdAt: string;
+}
+
 export default function ProfilePage() {
   const [activeNav, setActiveNav] = useState('profile');
   const [activeTab, setActiveTab] = useState('profile');
-  const [userData, setUserData] = useState(null);
+  const [userData, setUserData] = useState<any>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [postsLoading, setPostsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState({
@@ -21,12 +42,22 @@ export default function ProfilePage() {
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
   
+  // ✅ DECLARE STATE DI SINI
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  
   const router = useRouter();
 
   useEffect(() => {
     console.log('🚀 Profile page mounted, fetching user profile...');
     fetchUserProfile();
   }, []);
+
+  useEffect(() => {
+    if (userData?.username) {
+      fetchUserPosts();
+    }
+  }, [userData]);
 
   const fetchUserProfile = async () => {
     try {
@@ -54,11 +85,17 @@ export default function ProfilePage() {
       
       if (data.success && data.user) {
         setUserData(data.user);
+        
+        // ✅ SET REAL FOLLOWERS/FOLLOWING COUNT
+        setFollowersCount(data.user.followersCount || 0);
+        setFollowingCount(data.user.followingCount || 0);
+        
         setEditFormData({
           fullname: data.user.fullname || '',
           username: data.user.username || '',
         });
         console.log('✅ User data loaded successfully:', data.user.username);
+        console.log('👥 Followers:', data.user.followersCount, 'Following:', data.user.followingCount);
       } else {
         setError(data.message || 'Failed to load profile');
         console.error('❌ API error:', data.message);
@@ -74,6 +111,30 @@ export default function ProfilePage() {
       console.error('❌ Profile fetch error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserPosts = async () => {
+    try {
+      console.log('📡 Fetching own posts for:', userData.username);
+
+      const res = await fetch(`/api/post/user/${userData.username}`, {
+        credentials: 'include',
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log('✅ Posts loaded:', data.posts.length);
+        setPosts(data.posts || []);
+      } else {
+        console.error('Failed to load posts');
+        setPosts([]);
+      }
+      
+      setPostsLoading(false);
+    } catch (err) {
+      console.error('❌ Error fetching posts:', err);
+      setPostsLoading(false);
     }
   };
 
@@ -93,7 +154,7 @@ export default function ProfilePage() {
     setSaveSuccess('');
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: any) => {
     const { name, value } = e.target;
     setEditFormData(prev => ({
       ...prev,
@@ -117,7 +178,7 @@ export default function ProfilePage() {
       console.log('💾 Saving profile...', editFormData);
 
       const response = await fetch('/api/profile', { 
-  method: 'PUT',
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -134,7 +195,6 @@ export default function ProfilePage() {
         setSaveSuccess('Profile updated successfully!');
         console.log('✅ Profile updated successfully');
         
-        // Clear success message after 3 seconds
         setTimeout(() => setSaveSuccess(''), 3000);
       } else {
         setSaveError(data.message || 'Failed to update profile');
@@ -152,6 +212,16 @@ export default function ProfilePage() {
     console.log('🚪 Logging out...');
     localStorage.removeItem('token');
     router.push('/login');
+  };
+
+  const getAvatarUrl = (profilePhoto?: string, profilePicture?: string, fallbackName?: string) => {
+    if (profilePhoto && profilePhoto.trim() !== '') {
+      return profilePhoto;
+    }
+    if (profilePicture && profilePicture.trim() !== '') {
+      return profilePicture;
+    }
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName || 'User')}&background=random&size=150&bold=true`;
   };
 
   if (loading) {
@@ -250,8 +320,7 @@ export default function ProfilePage() {
               </svg>
               <span>Create</span>
             </Link>
-<Link href="/profile/me" style={{...styles.navItem, ...(activeNav === 'profile' ? styles.navItemActive : {})}}>
-```
+            <Link href="/profile" style={{...styles.navItem, ...(activeNav === 'profile' ? styles.navItemActive : {})}}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>
@@ -289,7 +358,6 @@ export default function ProfilePage() {
         </div>
 
         <div style={styles.mainContent}>
-          {/* Success/Error Messages */}
           {saveSuccess && (
             <div style={styles.successMessage}>
               {saveSuccess}
@@ -303,21 +371,18 @@ export default function ProfilePage() {
 
           <div style={styles.profileHeader}>
             <div style={styles.profileAvatar}>
-              {userData?.profilePhoto ? (
-                <img 
-                  src={userData.profilePhoto} 
-                  alt="Profile" 
-                  style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} 
-                />
-              ) : (
-                <Image 
-                  src="/assets/fotopp.png" 
-                  alt="Profile" 
-                  width={150} 
-                  height={150} 
-                  style={{borderRadius: '50%', objectFit: 'cover'}} 
-                />
-              )}
+              <img 
+                src={getAvatarUrl(
+                  userData?.profilePhoto,
+                  userData?.profilePicture,
+                  userData?.fullname || userData?.username
+                )}
+                alt="Profile" 
+                style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}}
+                onError={(e: any) => {
+                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.fullname || 'User')}&background=e357a3&color=fff&size=150&bold=true`;
+                }}
+              />
             </div>
             
             <div style={styles.profileInfo}>
@@ -356,9 +421,10 @@ export default function ProfilePage() {
                 </div>
               )}
               
+              {/* ✅ DISPLAY REAL FOLLOWERS/FOLLOWING COUNT */}
               <div style={styles.profileStats}>
-                <span style={styles.stat}><strong>10K</strong> followers</span>
-                <span style={styles.stat}><strong>539</strong> following</span>
+                <span style={styles.stat}><strong>{followersCount}</strong> followers</span>
+                <span style={styles.stat}><strong>{followingCount}</strong> following</span>
               </div>
               
               <p style={styles.profileBio}>
@@ -426,10 +492,72 @@ export default function ProfilePage() {
                   <rect x="14" y="14" width="7" height="7"/>
                   <rect x="3" y="14" width="7" height="7"/>
                 </svg>
-                <h3 style={styles.cardTitle}>Recent Campaigns</h3>
+                <h3 style={styles.cardTitle}>Recent Posts ({posts.length})</h3>
               </div>
               <div style={styles.cardContent}>
-                <div style={styles.campaignPreview}></div>
+                {postsLoading ? (
+                  <p style={{color: '#666'}}>Loading posts...</p>
+                ) : posts.length === 0 ? (
+                  <p style={{color: '#666'}}>No posts yet. Create your first post!</p>
+                ) : (
+                  <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px'}}>
+                    {posts.slice(0, 6).map((post) => (
+                      <div 
+                        key={post._id} 
+                        style={{
+                          borderRadius: '12px', 
+                          overflow: 'hidden', 
+                          height: '120px', 
+                          background: '#fff',
+                          cursor: 'pointer',
+                          position: 'relative'
+                        }}
+                        onClick={() => router.push(`/post/${post._id}`)}
+                      >
+                        {post.mediaUrl ? (
+                          // ✅ CHECK IF VIDEO OR IMAGE
+                          post.type === 'video' ? (
+                            <video 
+                              src={post.mediaUrl} 
+                              style={{width: '100%', height: '100%', objectFit: 'cover'}}
+                              muted
+                            />
+                          ) : (
+                            <img 
+                              src={post.mediaUrl} 
+                              alt="Post" 
+                              style={{width: '100%', height: '100%', objectFit: 'cover'}} 
+                            />
+                          )
+                        ) : (
+                          <div style={{padding: '8px', fontSize: '12px', color: '#666'}}>
+                            {post.caption}
+                          </div>
+                        )}
+                        
+                        {/* ✅ VIDEO INDICATOR ICON */}
+                        {post.type === 'video' && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '8px',
+                            right: '8px',
+                            background: 'rgba(0,0,0,0.6)',
+                            borderRadius: '50%',
+                            width: '24px',
+                            height: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
+                              <polygon points="5 3 19 12 5 21 5 3"/>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -464,6 +592,98 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          {/* Full Posts Grid */}
+          <div style={{marginTop: '40px'}}>
+            <h2 style={{fontSize: '24px', fontWeight: '600', marginBottom: '20px'}}>
+              All Posts ({posts.length})
+            </h2>
+
+            {postsLoading ? (
+              <div style={{textAlign: 'center', padding: '60px', fontSize: '18px', color: '#666'}}>
+                Loading posts...
+              </div>
+            ) : posts.length === 0 ? (
+              <div style={{textAlign: 'center', padding: '80px 40px', background: '#f9f9f9', borderRadius: '16px'}}>
+                <p>No posts yet. Create your first post!</p>
+                <button 
+                  style={{
+                    marginTop: '20px',
+                    padding: '12px 32px',
+                    background: '#4371f0',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => router.push('/create')}
+                >
+                  Create Post
+                </button>
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '12px',
+                marginBottom: '40px'
+              }}>
+                {posts.map((post) => (
+                  <div 
+                    key={post._id}
+                    style={{
+                      width: '100%',
+                      height: '260px',
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      background: '#eee',
+                      cursor: 'pointer',
+                      position: 'relative'
+                    }}
+                    onClick={() => router.push(`/post/${post._id}`)}
+                  >
+                    {/* ✅ CHECK IF VIDEO OR IMAGE */}
+                    {post.type === 'video' ? (
+                      <video 
+                        src={post.mediaUrl} 
+                        style={{width: '100%', height: '100%', objectFit: 'cover'}}
+                        muted
+                      />
+                    ) : (
+                      <img 
+                        src={post.mediaUrl} 
+                        alt="Post" 
+                        style={{width: '100%', height: '100%', objectFit: 'cover'}} 
+                      />
+                    )}
+                    
+                    {/* ✅ VIDEO PLAY ICON OVERLAY */}
+                    {post.type === 'video' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        background: 'rgba(0,0,0,0.6)',
+                        borderRadius: '50%',
+                        width: '48px',
+                        height: '48px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        pointerEvents: 'none'
+                      }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                          <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div style={styles.placeholderGrid}>
             <div style={styles.placeholderCard}></div>
             <div style={styles.placeholderCardLarge}></div>
@@ -476,8 +696,8 @@ export default function ProfilePage() {
 }
 
 const styles = {
-  circles: { position: 'fixed', width: '100%', height: '100%', overflow: 'hidden', zIndex: -1 },
-  circle: { position: 'absolute', borderRadius: '50%', opacity: 1, animation: 'float 15s infinite ease-in-out' },
+  circles: { position: 'fixed' as const, width: '100%', height: '100%', overflow: 'hidden' as const, zIndex: -1 },
+  circle: { position: 'absolute' as const, borderRadius: '50%', opacity: 1, animation: 'float 15s infinite ease-in-out' },
   pink: { background: '#e357a3' },
   lightpink: { background: '#f4a3c8' },
   blue: { background: '#4371f0' },
@@ -489,21 +709,21 @@ const styles = {
   container: { display: 'flex', minHeight: '100vh', background: 'white' },
   
   sidebar: {
-    width: '260px', background: '#fafbfc', position: 'fixed', height: '100vh',
+    width: '260px', background: '#fafbfc', position: 'fixed' as const, height: '100vh',
     left: 0, top: 0, zIndex: 100, padding: '30px 20px', display: 'flex',
-    flexDirection: 'column', borderRight: '1px solid #e8e8e8'
+    flexDirection: 'column' as const, borderRight: '1px solid #e8e8e8'
   },
   logo: { marginBottom: '50px', paddingLeft: '10px' },
-  navMenu: { display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 },
+  navMenu: { display: 'flex', flexDirection: 'column' as const, gap: '4px', flex: 1 },
   navItem: {
     display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px',
     borderRadius: '12px', color: '#666', textDecoration: 'none', fontSize: '15px',
-    fontWeight: '500', background: '#e8eaed', transition: 'all 0.2s ease',
+    fontWeight: '500' as const, background: '#e8eaed', transition: 'all 0.2s ease',
     cursor: 'pointer', border: 'none'
   },
   navItemActive: { background: '#4371f0', color: 'white' },
-  sidebarDecoration: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '200px', overflow: 'hidden', pointerEvents: 'none' },
-  sidebarCircle: { position: 'absolute', borderRadius: '50%', opacity: 0.5, animation: 'float 12s infinite ease-in-out' },
+  sidebarDecoration: { position: 'absolute' as const, bottom: 0, left: 0, right: 0, height: '200px', overflow: 'hidden' as const, pointerEvents: 'none' as const },
+  sidebarCircle: { position: 'absolute' as const, borderRadius: '50%', opacity: 0.5, animation: 'float 12s infinite ease-in-out' },
   
   mainContent: { flex: 1, marginLeft: '260px', padding: '40px 60px', zIndex: 10 },
   
@@ -518,14 +738,14 @@ const styles = {
     border: '1px solid #f5c6cb'
   },
   
-  profileHeader: { display: 'flex', gap: '35px', marginBottom: '30px', alignItems: 'flex-start' },
+  profileHeader: { display: 'flex', gap: '35px', marginBottom: '30px', alignItems: 'flex-start' as const },
   profileAvatar: {
-    width: '150px', height: '150px', borderRadius: '50%', overflow: 'hidden',
+    width: '150px', height: '150px', borderRadius: '50%', overflow: 'hidden' as const,
     flexShrink: 0, border: '4px solid #f0f0f0'
   },
   profileInfo: { flex: 1 },
-  profileUsername: { margin: 0, fontSize: '32px', fontWeight: '700', color: '#111', marginBottom: '5px' },
-  profileTitle: { margin: 0, fontSize: '20px', fontWeight: '600', color: '#111', marginBottom: '8px' },
+  profileUsername: { margin: 0, fontSize: '32px', fontWeight: '700' as const, color: '#111', marginBottom: '5px' },
+  profileTitle: { margin: 0, fontSize: '20px', fontWeight: '600' as const, color: '#111', marginBottom: '8px' },
   profileCategory: { margin: 0, fontSize: '16px', color: '#666', marginBottom: '15px' },
   profileStats: { display: 'flex', gap: '25px', marginBottom: '15px' },
   stat: { fontSize: '15px', color: '#333' },
@@ -533,43 +753,43 @@ const styles = {
   
   editForm: { marginBottom: '20px' },
   formGroup: { marginBottom: '15px' },
-  label: { display: 'block', fontSize: '14px', fontWeight: '600', color: '#111', marginBottom: '6px' },
+  label: { display: 'block', fontSize: '14px', fontWeight: '600' as const, color: '#111', marginBottom: '6px' },
   input: {
     width: '100%', padding: '12px 16px', border: '1.5px solid #e0e0e0',
     borderRadius: '10px', fontSize: '15px', color: '#333', outline: 'none',
-    transition: 'border 0.2s', boxSizing: 'border-box', background: '#f5f7fa'
+    transition: 'border 0.2s', boxSizing: 'border-box' as const, background: '#f5f7fa'
   },
   
   actionButtons: { display: 'flex', gap: '15px', marginBottom: '35px' },
   btnSecondary: {
     padding: '12px 28px', background: '#f0f2f5', border: 'none',
-    borderRadius: '12px', fontSize: '15px', fontWeight: '500', color: '#333',
+    borderRadius: '12px', fontSize: '15px', fontWeight: '500' as const, color: '#333',
     cursor: 'pointer', transition: 'all 0.2s'
   },
   btnPrimary: {
     padding: '12px 28px', background: '#e357a3', border: 'none',
-    borderRadius: '12px', fontSize: '15px', fontWeight: '500', color: 'white',
+    borderRadius: '12px', fontSize: '15px', fontWeight: '500' as const, color: 'white',
     cursor: 'pointer', transition: 'all 0.2s'
   },
   
   tabsContainer: { display: 'flex', gap: '5px', marginBottom: '30px', borderBottom: '2px solid #f0f0f0' },
   tab: {
     padding: '12px 0', marginRight: '30px', background: 'none', border: 'none',
-    fontSize: '16px', fontWeight: '500', color: '#999', cursor: 'pointer',
-    position: 'relative', transition: 'color 0.2s'
+    fontSize: '16px', fontWeight: '500' as const, color: '#999', cursor: 'pointer',
+    position: 'relative' as const, transition: 'color 0.2s'
   },
-  tabActive: { color: '#333', fontWeight: '600' },
+  tabActive: { color: '#333', fontWeight: '600' as const },
   tabInactive: { color: '#999' },
   
   contentGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '25px', marginBottom: '25px' },
   card: { borderRadius: '24px', padding: '28px', minHeight: '300px' },
   cardHeader: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' },
-  cardTitle: { margin: 0, fontSize: '18px', fontWeight: '600', color: 'white' },
+  cardTitle: { margin: 0, fontSize: '18px', fontWeight: '600' as const, color: 'white' },
   cardContent: { flex: 1 },
   campaignPreview: { width: '100%', height: '200px', background: 'white', borderRadius: '16px' },
   metricsGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px' },
-  metricBox: { background: 'white', borderRadius: '16px', padding: '20px', textAlign: 'center' },
-  metricValue: { margin: 0, fontSize: '28px', fontWeight: '700', color: '#111', marginBottom: '5px' },
+  metricBox: { background: 'white', borderRadius: '16px', padding: '20px', textAlign: 'center' as const },
+  metricValue: { margin: 0, fontSize: '28px', fontWeight: '700' as const, color: '#111', marginBottom: '5px' },
   metricLabel: { margin: 0, fontSize: '13px', color: '#666' },
   
   placeholderGrid: { display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: '25px' },
@@ -577,7 +797,7 @@ const styles = {
   placeholderCardLarge: { background: 'linear-gradient(135deg, #e8e8e8, #f5f5f5)', borderRadius: '24px', minHeight: '280px' },
   
   loadingContainer: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    display: 'flex', flexDirection: 'column' as const, alignItems: 'center',
     justifyContent: 'center', minHeight: '100vh', gap: '20px'
   },
   spinner: {
@@ -586,8 +806,8 @@ const styles = {
     animation: 'spin 1s linear infinite'
   },
   errorContainer: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    display: 'flex', flexDirection: 'column' as const, alignItems: 'center',
     justifyContent: 'center', minHeight: '100vh', gap: '20px', padding: '20px'
   },
-  errorText: { fontSize: '18px', color: '#e74c3c', textAlign: 'center' },
+  errorText: { fontSize: '18px', color: '#e74c3c', textAlign: 'center' as const },
 };

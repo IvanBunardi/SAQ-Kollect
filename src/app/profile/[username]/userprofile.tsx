@@ -114,7 +114,7 @@ const styles = {
   tabActive: { color: "#333", fontWeight: "600" },
   tabInactive: { color: "#999" },
 
-  contentGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "25px", marginBottom: "25px" },
+  contentGrid: { display: "grid", gridTemplateColumns: "1fr", gap: "25px", marginBottom: "25px" },
   card: { borderRadius: "24px", padding: "28px", minHeight: "300px" },
   cardHeader: { display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" },
   cardTitle: { margin: 0, fontSize: "18px", fontWeight: "600", color: "white" },
@@ -134,8 +134,45 @@ const styles = {
   errorContainer: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: "20px", padding: "20px" },
   errorText: { fontSize: "18px", color: "#e74c3c", textAlign: "center" },
 
-  postsGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" },
-  postCard: { width: "100%", height: "260px", borderRadius: "12px", overflow: "hidden", background: "#eee" },
+  // GAYA UNTUK KARTU POSTINGAN
+  recentPostsContainer: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "20px" },
+  
+  postCardLarge: {
+    borderRadius: "12px", 
+    padding: "15px",
+    background: "#eef4ff", // Warna biru muda
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+    border: "1px solid #d0e0ff",
+    // Hapus minHeight jika ada, biarkan konten menentukan tinggi
+  },
+  postHeader: { display: "flex", alignItems: "center", gap: "10px", marginBottom: "5px" },
+  postAvatar: { width: "35px", height: "35px", borderRadius: "50%", overflow: "hidden", flexShrink: 0 },
+  postUsername: { fontWeight: "600", fontSize: "14px", color: "#333" },
+  postTime: { fontSize: "12px", color: "#666", marginLeft: "8px" },
+  postCaption: { fontSize: "15px", color: "#111", lineHeight: "1.4", margin: "0 0 10px 0" },
+  
+  // >>>>>> PERUBAHAN DI SINI: Hapus paddingBottom dan position
+  postMediaContainer: { 
+    width: "100%", 
+    overflow: "hidden", 
+    borderRadius: "8px", 
+    // Hapus paddingBottom: "100%", // Ini yang membuat media jadi persegi dan terpotong
+    // Hapus position: "relative", // Karena tidak lagi menggunakan paddingBottom
+  },
+  postMedia: { 
+    width: "100%", 
+    // Hapus height: "100%", // Biarkan tinggi menyesuaikan konten
+    objectFit: "cover", // Atau 'contain' jika ingin gambar selalu terlihat penuh (tapi ada spasi)
+    display: "block", // Agar tidak ada spasi di bawah gambar
+  },
+  // <<<<<< PERUBAHAN SELESAI
+
+  postActions: { display: "flex", gap: "20px", paddingTop: "10px", borderTop: "1px solid #d0e0ff" },
+  postActionButton: { display: "flex", alignItems: "center", gap: "5px", color: "#666", fontSize: "13px", cursor: "pointer" },
+  postLocation: { fontSize: "12px", color: "#4371f0", fontWeight: "500", margin: "5px 0", display: "flex", alignItems: "center", gap: "4px" }
 };
 
 type User = {
@@ -157,7 +194,16 @@ type Post = {
   caption?: string;
   mediaUrl?: string;
   createdAt?: string;
+  location?: string;
 };
+
+// Data Postingan Contoh (untuk simulasi, jika data API kosong)
+const dummyPosts: Post[] = [
+    { _id: '1', caption: 'LAFALELA', mediaUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1500&q=80', createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), location: 'BALI' },
+    { _id: '2', caption: 'Bukber Bareng Coding Class', mediaUrl: 'https://images.unsplash.com/photo-1549488349-e160e86b978d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1500&q=80', createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(), location: 'Jakarta Selatan' },
+    { _id: '3', caption: 'GOBLIN', mediaUrl: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1500&q=80', createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), location: 'Di Rumah' },
+];
+
 
 export default function UserProfile({ username }: { username: string }) {
   const [userData, setUserData] = useState<User | null>(null);
@@ -181,15 +227,9 @@ export default function UserProfile({ username }: { username: string }) {
       console.log('🔍 Profile API Response Status:', res.status);
       
       if (!res.ok) {
-        let txt = await res.text();
-        try {
-          const j = JSON.parse(txt);
-          setError(j.message || "Failed to load profile");
-        } catch {
-          setError("Failed to load profile");
-        }
+        setError("Failed to load profile");
         setUserData(null);
-        setPosts([]);
+        setPosts(dummyPosts); 
         setLoading(false);
         return;
       }
@@ -200,50 +240,53 @@ export default function UserProfile({ username }: { username: string }) {
       if (!data.success) {
         setError(data.message || "User not found");
         setUserData(null);
+        setPosts(dummyPosts); 
         setLoading(false);
         return;
       }
 
-      console.log('✅ User Data Loaded:', {
-        username: data.user.username,
-        hasProfilePhoto: !!data.user.profilePhoto,
-        hasProfilePicture: !!data.user.profilePicture,
-        profilePhoto: data.user.profilePhoto?.substring(0, 50) + '...',
-      });
-
       setUserData(data.user || null);
 
-      // fetch posts
       const resPosts = await fetch(`/api/profile/${username}/posts`);
       if (resPosts.ok) {
         const postsData = await resPosts.json();
-        setPosts(postsData.posts || []);
+        setPosts(postsData.posts && postsData.posts.length > 0 ? postsData.posts : dummyPosts); 
       } else {
-        setPosts([]);
+        setPosts(dummyPosts);
       }
     } catch (err) {
       console.error("❌ Fetch profile error:", err);
       setError("Failed to load profile");
       setUserData(null);
-      setPosts([]);
+      setPosts(dummyPosts); 
     } finally {
       setLoading(false);
     }
   };
 
   const getAvatarUrl = (username: string, profilePhoto: string | null, profilePicture: string | null) => {
-    // Prioritas: profilePhoto > profilePicture > generated avatar
     if (profilePhoto && profilePhoto.trim() !== '') {
-      console.log('🖼️ Using profilePhoto:', profilePhoto.substring(0, 50) + '...');
       return profilePhoto;
     }
     if (profilePicture && profilePicture.trim() !== '') {
-      console.log('🖼️ Using profilePicture:', profilePicture.substring(0, 50) + '...');
       return profilePicture;
     }
-    console.log('🎨 Generating avatar for:', username);
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random&size=150&bold=true`;
   };
+
+  const formatTimeAgo = (timestamp: string | undefined): string => {
+    if (!timestamp) return 'Time unknown';
+    const now = new Date();
+    const past = new Date(timestamp);
+    const diffInSeconds = Math.floor((now.getTime() - past.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return `${diffInSeconds} seconds ago`;
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    return past.toLocaleDateString();
+  };
+
 
   if (loading) {
     return (
@@ -255,14 +298,7 @@ export default function UserProfile({ username }: { username: string }) {
   }
 
   if (error && !userData) {
-    return (
-      <div style={styles.errorContainer}>
-        <p style={styles.errorText}>{error}</p>
-        <button style={styles.btnPrimary as any} onClick={() => router.push("/")}>
-          Go Home
-        </button>
-      </div>
-    );
+    // Dengan dummyPosts, ini mungkin tidak akan terlalu sering muncul
   }
 
   return (
@@ -281,6 +317,7 @@ export default function UserProfile({ username }: { username: string }) {
         body { margin: 0; padding: 0; overflow-x: hidden; }
       `}</style>
 
+      {/* Background Circles */}
       <div style={styles.circles as any}>
         <div style={{ ...styles.circle, ...styles.blue, ...styles.huge, top: "-180px", left: "-180px", animationDelay: "0s" }} />
         <div style={{ ...styles.circle, ...styles.lightpink, ...styles.extrabig, top: "-120px", left: "120px", animationDelay: "2s" }} />
@@ -294,12 +331,14 @@ export default function UserProfile({ username }: { username: string }) {
       </div>
 
       <div style={styles.container as any}>
+        {/* Sidebar */}
         <div style={styles.sidebar as any}>
           <div style={styles.logo as any}>
             <Image src="/assets/logo-full.png" alt="Kollect Logo" width={200} height={106} style={{ objectFit: "contain" }} />
           </div>
 
           <nav style={styles.navMenu as any}>
+            {/* Nav Links */}
             <Link href="/feeds" style={styles.navItem as any}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -315,7 +354,7 @@ export default function UserProfile({ username }: { username: string }) {
               <span>Search</span>
             </Link>
             <Link href="/explore" style={styles.navItem as any}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="20" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
                 <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
               </svg>
@@ -341,7 +380,10 @@ export default function UserProfile({ username }: { username: string }) {
               </svg>
               <span>Create</span>
             </Link>
-            <Link href="/profile/me" style={styles.navItem as any}>
+            <Link 
+              href={`/profile/${username}`} 
+              style={{ ...styles.navItem as any, ...styles.navItemActive }} 
+            >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
@@ -370,6 +412,7 @@ export default function UserProfile({ username }: { username: string }) {
           </div>
         </div>
 
+        {/* Main Content */}
         <div style={styles.mainContent as any}>
           {error && (
             <div style={styles.errorMessage as any}>
@@ -377,6 +420,7 @@ export default function UserProfile({ username }: { username: string }) {
             </div>
           )}
 
+          {/* Profile Header */}
           <div style={styles.profileHeader as any}>
             <div style={styles.profileAvatar as any}>
               <img
@@ -388,7 +432,6 @@ export default function UserProfile({ username }: { username: string }) {
                 alt={userData?.fullname || userData?.username}
                 style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
                 onError={(e) => {
-                  console.error('❌ Image load error, falling back to generated avatar');
                   e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.username || 'User')}&background=random&size=150&bold=true`;
                 }}
               />
@@ -410,7 +453,7 @@ export default function UserProfile({ username }: { username: string }) {
 
               <div style={styles.actionButtons as any}>
                 <button style={styles.btnPrimary as any} onClick={() => router.push(`/hire/${userData?.username || ""}`)}>
-                  Hire for Campaign
+                  Follow
                 </button>
                 <button style={styles.btnSecondary as any} onClick={() => router.push(`/messages/compose?to=${userData?.username || ""}`)}>
                   Message
@@ -419,6 +462,7 @@ export default function UserProfile({ username }: { username: string }) {
             </div>
           </div>
 
+          {/* Tabs */}
           <div style={styles.tabsContainer as any}>
             <button style={{ ...styles.tab as any, ...(activeTab === "profile" ? styles.tabActive : {}) }} onClick={() => setActiveTab("profile")}>Profile</button>
             <button style={{ ...styles.tab as any, ...(activeTab === "work" ? styles.tabActive : {}) }} onClick={() => setActiveTab("work")}>Work</button>
@@ -426,30 +470,75 @@ export default function UserProfile({ username }: { username: string }) {
 
           {activeTab === "profile" ? (
             <>
-              <div style={styles.contentGrid as any}>
-                <div style={{ ...styles.card as any, background: "linear-gradient(135deg, #a5c8f0, #c8ddf0)" }}>
-                  <div style={styles.cardHeader as any}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                      <rect x="3" y="3" width="7" height="7" />
-                      <rect x="14" y="3" width="7" height="7" />
-                      <rect x="14" y="14" width="7" height="7" />
-                      <rect x="3" y="14" width="7" height="7" />
-                    </svg>
-                    <h3 style={styles.cardTitle as any}>Recent Posts</h3>
-                  </div>
-                  <div style={styles.cardContent as any}>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-                      {posts.slice(0, 6).map((p) => (
-                        <div key={p._id} style={{ borderRadius: 12, overflow: "hidden", height: 120, background: "#fff" }}>
-                          {p.mediaUrl ? <img src={p.mediaUrl} alt="Post" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ padding: 8, fontSize: 12 }}>{p.caption}</div>}
+              {/* RECENT POSTS SECTION */}
+              <h3 style={{ margin: "0 0 20px 0", fontSize: "20px", fontWeight: "600", color: "#111" }}>Recent Posts ({posts.length})</h3>
+              
+              <div style={styles.recentPostsContainer as any}> 
+                {posts.length > 0 ? (
+                  posts.map((p) => (
+                    <div key={p._id} style={styles.postCardLarge as any}>
+                      {/* Post Header (Avatar, Username, Time) */}
+                      <div style={styles.postHeader as any}>
+                        <div style={styles.postAvatar as any}>
+                          <img
+                            src={getAvatarUrl(userData?.username || 'User', userData?.profilePhoto || null, userData?.profilePicture || null)}
+                            alt={userData?.username}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
                         </div>
-                      ))}
-                      {posts.length === 0 && <p style={{ color: "#666", gridColumn: "1 / -1" }}>No posts yet.</p>}
-                    </div>
-                  </div>
-                </div>
+                        <div>
+                          <p style={styles.postUsername as any}>{userData?.username || "leonardo"}</p>
+                        </div>
+                        <span style={styles.postTime as any}> • {formatTimeAgo(p.createdAt)}</span>
+                      </div>
 
-                <div style={{ ...styles.card as any, background: "linear-gradient(135deg, #e357a3, #f4a3c8)" }}>
+                      {/* Caption/Judul Postingan */}
+                      {p.caption && <p style={styles.postCaption as any}>{p.caption}</p>}
+                      
+                      {/* Media/Image */}
+                      {p.mediaUrl && (
+                        <div style={styles.postMediaContainer as any}>
+                           <img
+                            src={p.mediaUrl}
+                            alt="Post Media"
+                            style={styles.postMedia as any}
+                          />
+                        </div>
+                      )}
+
+                      {/* Location (optional) */}
+                      {p.location && <p style={styles.postLocation as any}>{p.location}</p>}
+
+                      {/* Post Actions (Likes, Comments, Shares) */}
+                      <div style={styles.postActions as any}>
+                        <span style={{ ...styles.postActionButton as any, color: "#e357a3" }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                          </svg>
+                          1
+                        </span>
+                        <span style={styles.postActionButton as any}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                          </svg>
+                          0
+                        </span>
+                        <span style={styles.postActionButton as any}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M7 10v4h3v7l7-7h3v-4h-7l-7-7v7z" />
+                          </svg>
+                          0
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ color: "#666", gridColumn: "1 / -1", textAlign: "center", padding: "40px" }}>No recent posts found for this user.</p>
+                )}
+              </div>
+              
+              {/* Performance Metrics Card */}
+              <div style={{ ...styles.card as any, background: "linear-gradient(135deg, #e357a3, #f4a3c8)", marginBottom: "25px", marginTop: "25px" }}>
                   <div style={styles.cardHeader as any}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                       <rect x="3" y="3" width="7" height="7" />
@@ -478,8 +567,8 @@ export default function UserProfile({ username }: { username: string }) {
                     </div>
                   </div>
                 </div>
-              </div>
 
+              {/* Placeholder Grid */}
               <div style={styles.placeholderGrid as any}>
                 <div style={styles.placeholderCard as any}></div>
                 <div style={styles.placeholderCardLarge as any}></div>

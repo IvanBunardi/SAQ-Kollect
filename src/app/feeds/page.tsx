@@ -642,7 +642,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   feedImage: {
     flex: 1,
-    height: '300px',
+    height: '500px',
     borderRadius: '18px',
     background: '#f0f0f0',
     overflow: 'hidden',

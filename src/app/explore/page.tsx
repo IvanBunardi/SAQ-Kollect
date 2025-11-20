@@ -659,7 +659,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   feedImage: {
     flex: 1,
-    height: '180px',
+    height: '500px',
     borderRadius: '18px',
     overflow: 'hidden',
     display: 'flex',

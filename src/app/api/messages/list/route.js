@@ -1,62 +1,76 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import Message from "@/models/Message"; // Digunakan untuk mencari kontak unik
-import User from "@/models/User"; // Digunakan untuk mendapatkan detail pengguna
+import Message from "@/models/Message";
+import User from "@/models/User";
 import jwt from "jsonwebtoken";
 
-// Data simulasi untuk fallback (Ganti dengan skema User Mongoose Anda)
-const MOCK_USER_DATA = [
-    { id: "felix", name: "Felix Tan", category: "Tech", followers: "143K Followers", profilePhoto: "/assets/fotomes.png" },
-];
-
-
 export async function GET(request) {
+  try {
     await dbConnect();
 
-    const auth = request.headers.get("authorization");
-    if (!auth) return NextResponse.json({ error: "No token" }, { status: 401 });
-
-    try {
-        const token = auth.split(" ")[1];
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const myId = decoded.userId; // ID pengguna yang sedang login
-
-        // --- Logika Mendapatkan Daftar Kontak Unik (Versi Sederhana) ---
-        // Anda harus mengambil daftar ID unik dari pesan yang pernah Anda kirim/terima
-        // Kemudian, cari detail profil mereka di koleksi User.
-        
-        // Karena ini adalah contoh dan saya tidak memiliki model User/Message Anda:
-        // Kami mengembalikan data dummy agar tampilan depan berfungsi.
-        
-        // Di aplikasi nyata, Anda akan melakukan Query Mongoose yang kompleks di sini.
-        
-        // Contoh: Ambil semua pesan yang melibatkan myId
-        /*
-        const conversations = await Message.find({
-            $or: [{ sender: myId }, { receiver: myId }]
-        }).select('sender receiver');
-
-        const uniqueUserIds = new Set();
-        conversations.forEach(msg => {
-            if (msg.sender.toString() !== myId) uniqueUserIds.add(msg.sender.toString());
-            if (msg.receiver.toString() !== myId) uniqueUserIds.add(msg.receiver.toString());
-        });
-        
-        const contacts = await User.find({ _id: { $in: Array.from(uniqueUserIds) } });
-        const chatList = contacts.map(user => ({
-            id: user._id.toString(),
-            name: user.username, // Ganti dengan nama field pengguna Anda
-            category: user.category || 'Creator',
-            followers: user.followersCount ? `${user.followersCount} Followers` : 'New User',
-        }));
-        */
-
-        // Mengembalikan MOCK data yang terlihat seperti array (untuk menghindari error frontend)
-        return NextResponse.json(MOCK_USER_DATA, { status: 200 });
-
-    } catch (error) {
-        console.error("JWT or DB error in /list:", error);
-        // Tangani error JWT (401 Unauthorized)
-        return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    // Verify token
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { success: false, message: "No token provided" },
+        { status: 401 }
+      );
     }
+
+    const token = authHeader.split(" ")[1];
+    
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (jwtError) {
+      return NextResponse.json(
+        { success: false, message: "Invalid token" },
+        { status: 401 }
+      );
+    }
+
+    // Get all conversations for current user
+    const userId = decoded.userId;
+
+    const messages = await Message.find({
+      $or: [
+        { sender: userId },
+        { recipient: userId }
+      ]
+    })
+    .populate('sender', 'username fullname profilePhoto')
+    .populate('recipient', 'username fullname profilePhoto')
+    .sort({ createdAt: -1 })
+    .lean();
+
+    // Group by conversation
+    const conversations = {};
+    messages.forEach(msg => {
+      const otherUser = msg.sender._id.toString() === userId 
+        ? msg.recipient 
+        : msg.sender;
+      
+      const conversationId = otherUser._id.toString();
+      
+      if (!conversations[conversationId]) {
+        conversations[conversationId] = {
+          user: otherUser,
+          lastMessage: msg,
+          unreadCount: 0
+        };
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      conversations: Object.values(conversations)
+    }, { status: 200 });
+
+  } catch (err) {
+    console.error("❌ API ERROR /messages/list:", err);
+    return NextResponse.json(
+      { success: false, message: "Server error", error: err.message },
+      { status: 500 }
+    );
+  }
 }

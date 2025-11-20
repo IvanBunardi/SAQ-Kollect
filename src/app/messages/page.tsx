@@ -19,10 +19,6 @@ interface Message {
     text: string;
 }
 
-// --- PENTING: HARAP GANTI INI DENGAN TOKEN JWT VALID ANDA ---
-// Token ini yang mengatasi Error 401 dan 500 JWT di backend!
-const VALID_JWT_TOKEN = localStorage.getItem("token");
-
 // Data simulasi (Fallback jika API gagal total)
 const initialChatData: ChatItem[] = [
   { "id": "felix", "name": "Felix Tan", "category": "Tech", "followers": "143K Followers" },
@@ -33,12 +29,21 @@ export default function MessagesPage() {
   const [activeNav, setActiveNav] = useState('messages');
   const [activeTab, setActiveTab] = useState<'chats' | 'jobs'>('chats');
   
+  // ✅ FIX: Pindahkan token ke state
+  const [token, setToken] = useState<string | null>(null);
+  
   // Deklarasi state yang benar dan aman
   const [chatList, setChatList] = useState<ChatItem[]>(initialChatData);
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
   const [selectedChat, setSelectedChat] = useState(initialChatData[0]?.name || '');
   const [showAcceptedModal, setShowAcceptedModal] = useState(false);
   
+  // ✅ FIX: Load token from localStorage on mount
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+    setToken(storedToken);
+    console.log('🔑 Token loaded:', storedToken ? storedToken.substring(0, 20) + '...' : 'null');
+  }, []);
 
   const handleAccept = () => {
     setShowAcceptedModal(true);
@@ -56,26 +61,27 @@ export default function MessagesPage() {
 
   // --- useEffect: Memuat Chat List (/api/messages/list) ---
   useEffect(() => {
+    if (!token) return; // ✅ Wait for token to load
+    
     async function loadChats() {
       try {
         const res = await fetch('/api/messages/list', {
             headers: {
-                // Mengatasi Error 401
-                'Authorization': `Bearer ${VALID_JWT_TOKEN}`, 
+                'Authorization': `Bearer ${token}`, 
             },
         });
         
         // Menangani Error HTTP (401 atau 500)
         if (!res.ok) {
             console.error(`Failed to load chats: HTTP status ${res.status}. Cek token JWT.`);
-            setChatList(initialChatData); // Fallback data
+            setChatList(initialChatData);
             if (initialChatData.length > 0) setSelectedChat(initialChatData[0].name);
             return;
         }
 
         const data = await res.json();
         
-        // Memastikan data adalah Array (Mengatasi chatList.map is not a function)
+        // Memastikan data adalah Array
         if (Array.isArray(data) && data.length > 0) {
           setChatList(data as ChatItem[]);
           setSelectedChat(data[0].name); 
@@ -91,31 +97,33 @@ export default function MessagesPage() {
       }
     }
     loadChats();
-  }, []);
+  }, [token]); // ✅ Run when token changes
   
 
   // --- useEffect: Memuat Chat History (/api/messages/{name}) ---
   useEffect(() => {
-    if (!selectedChat) return;
+    if (!selectedChat || !token) return; // ✅ Wait for token
+    
     async function loadChatHistory() {
       try {
-        const res = await fetch(`/api/messages/${selectedChat}`, {
+        // 🌟 PERBAIKAN UTAMA: Menggunakan encodeURIComponent untuk menangani spasi di nama chat
+        const encodedChatName = encodeURIComponent(selectedChat);
+        
+        const res = await fetch(`/api/messages/${encodedChatName}`, {
             headers: {
-                // Mengatasi Error 401
-                'Authorization': `Bearer ${VALID_JWT_TOKEN}`, 
+                'Authorization': `Bearer ${token}`, 
             },
         });
 
-        // Menangani Error HTTP (400, 401, 500)
         if (!res.ok) {
-            console.error(`Failed to load history for ${selectedChat}: HTTP status ${res.status}. Cek Route.js.`);
+            // Log error yang lebih spesifik
+            console.error(`Failed to load history for ${selectedChat}: HTTP status ${res.status}`);
             setChatHistory([]);
             return;
         }
 
         const data = await res.json();
 
-        // Memastikan data adalah Array
         if (Array.isArray(data)) {
              setChatHistory(data as Message[]);
         } else {
@@ -129,7 +137,7 @@ export default function MessagesPage() {
       }
     }
     loadChatHistory();
-  }, [selectedChat]);
+  }, [selectedChat, token]); // ✅ Run when selectedChat or token changes
 
   return (
     <>
@@ -176,7 +184,7 @@ export default function MessagesPage() {
               <span>Search</span>
             </Link>
 
-            <Link href="/" style={{ ...styles.navItem, ...(activeNav === 'explore' && styles.navItemActive) }}>
+            <Link href="/explore" style={{ ...styles.navItem, ...(activeNav === 'explore' && styles.navItemActive) }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
                 <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
@@ -274,16 +282,13 @@ export default function MessagesPage() {
           </div>
 
           <div style={styles.chatList}>
-            {/* Menggunakan Array.isArray untuk mencegah error "chatList.map is not a function" */}
             {Array.isArray(chatList) && chatList.map((chat, index) => (
               <div
                 key={chat.id || index}
                 style={{ ...styles.chatItem, ...(chat.name === selectedChat && styles.chatItemActive) }}
                 onClick={() => setSelectedChat(chat.name)}
               >
-                <div style={styles.chatAvatar}>
-                     {/* Tambahkan Gambar di sini jika tersedia */}
-                </div>
+                <div style={styles.chatAvatar}></div>
                 <div style={styles.chatInfo}>
                   <h3 style={styles.chatName}>{chat.name}</h3>
                   <p style={styles.chatMeta}>
@@ -309,106 +314,103 @@ export default function MessagesPage() {
               </div>
 
               <div style={{ flex: 1, padding: "20px", overflowY: "auto" }}>
-  {chatHistory.length === 0 && (
-    <p style={{ color: "#aaa", fontSize: "14px" }}>Start the conversation...</p>
-  )}
+                {chatHistory.length === 0 && (
+                  <p style={{ color: "#aaa", fontSize: "14px" }}>Start the conversation...</p>
+                )}
 
-  {/* Pastikan chatHistory adalah Array sebelum di-map */}
-  {Array.isArray(chatHistory) && chatHistory.map((msg: Message, i: number) => (
-    <div 
-      key={i} 
-      style={{ 
-        marginBottom: "18px",
-        // Gaya untuk pesan pengirim (You)
-        textAlign: msg.sender === 'You' ? 'right' : 'left'
-      }}
-    >
-      <div 
-         style={{ 
-            fontSize: "13px", 
-            fontWeight: "600", 
-            marginBottom: "6px",
-            textAlign: msg.sender === 'You' ? 'right' : 'left'
-         }}
-      >
-        {msg.sender === 'You' ? 'You' : selectedChat} 
-      </div>
-      <div
-        style={{
-          background: msg.sender === 'You' ? "#e357a3" : "#f5f5f5", // Warna berbeda untuk pesan Anda
-          color: msg.sender === 'You' ? "#fff" : "#111",
-          padding: "12px 16px",
-          borderRadius: "12px",
-          display: "inline-block",
-          maxWidth: "60%"
-        }}
-      >
-        {msg.text}
-      </div>
-    </div>
-  ))}
-</div>
+                {Array.isArray(chatHistory) && chatHistory.map((msg: Message, i: number) => (
+                  <div 
+                    key={i} 
+                    style={{ 
+                      marginBottom: "18px",
+                      textAlign: msg.sender === 'You' ? 'right' : 'left'
+                    }}
+                  >
+                    <div 
+                       style={{ 
+                          fontSize: "13px", 
+                          fontWeight: "600", 
+                          marginBottom: "6px",
+                          textAlign: msg.sender === 'You' ? 'right' : 'left'
+                       }}
+                    >
+                      {msg.sender === 'You' ? 'You' : selectedChat} 
+                    </div>
+                    <div
+                      style={{
+                        background: msg.sender === 'You' ? "#e357a3" : "#f5f5f5",
+                        color: msg.sender === 'You' ? "#fff" : "#111",
+                        padding: "12px 16px",
+                        borderRadius: "12px",
+                        display: "inline-block",
+                        maxWidth: "60%"
+                      }}
+                    >
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
 
               <div style={styles.messageInputContainer}>
-                <div style={styles.messageInputContainer}>
-  <form
-    onSubmit={async (e) => {
-      e.preventDefault();
-      const input = (e.target as HTMLFormElement).message.value;
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const input = (e.target as HTMLFormElement).message.value;
 
-      if (!input.trim() || !selectedChat) return;
+                    if (!input.trim() || !selectedChat || !token) return;
 
-      await fetch('/api/messages/send', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${VALID_JWT_TOKEN}`, 
-        },
-        body: JSON.stringify({
-          to: selectedChat,
-          text: input
-        })
-      });
+                    await fetch('/api/messages/send', {
+                      method: 'POST',
+                      headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`, 
+                      },
+                      body: JSON.stringify({
+                        to: selectedChat,
+                        text: input
+                      })
+                    });
 
-      (e.target as HTMLFormElement).message.value = "";
+                    (e.target as HTMLFormElement).message.value = "";
 
-      // Muat ulang history setelah kirim
-      const res = await fetch(`/api/messages/${selectedChat}`, {
-           headers: {
-            'Authorization': `Bearer ${VALID_JWT_TOKEN}`, 
-        },
-      });
-      
-      if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) {
-            setChatHistory(data);
-          } else {
-            setChatHistory([]);
-          }
-      } else {
-          console.error("Failed to reload history after sending message.");
-          setChatHistory([]);
-      }
-    }}
-  >
-    <input
-      name="message"
-      placeholder="Type your message..."
-      style={{
-        width: "100%",
-        padding: "15px 20px",
-        borderRadius: "25px",
-        border: "1px solid #ddd",
-      }}
-    />
-  </form>
-</div>
+                    // Reload history after sending
+                    const encodedChatName = encodeURIComponent(selectedChat);
+                    const res = await fetch(`/api/messages/${encodedChatName}`, {
+                         headers: {
+                          'Authorization': `Bearer ${token}`, 
+                      },
+                    });
+                    
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (Array.isArray(data)) {
+                          setChatHistory(data);
+                        } else {
+                          setChatHistory([]);
+                        }
+                    } else {
+                        console.error("Failed to reload history after sending message.");
+                        setChatHistory([]);
+                    }
+                  }}
+                >
+                  <input
+                    name="message"
+                    placeholder="Type your message..."
+                    style={{
+                      width: "100%",
+                      padding: "15px 20px",
+                      borderRadius: "25px",
+                      border: "1px solid #ddd",
+                    }}
+                  />
+                </form>
               </div>
             </>
           ) : (
             <>
-              {/* Jobs Form Header */}
+              {/* Jobs Form (unchanged) */}
               <div style={styles.jobsHeader}>
                 <div style={styles.jobsHeaderLeft}>
                   <div style={styles.jobsAvatar}>
@@ -418,40 +420,33 @@ export default function MessagesPage() {
                 </div>
               </div>
 
-              {/* Jobs Form Content */}
               <div style={styles.jobsFormContainer}>
                 <div style={styles.jobsForm}>
-                  {/* Name Field */}
                   <div style={styles.formGroup}>
                     <label style={styles.formLabel}>Name</label>
                     <input type="text" style={styles.formInput} />
                   </div>
 
-                  {/* Industry Field */}
                   <div style={styles.formGroup}>
                     <label style={styles.formLabel}>Industry</label>
                     <input type="text" style={styles.formInput} />
                   </div>
 
-                  {/* Why interested Field */}
                   <div style={styles.formGroup}>
                     <label style={styles.formLabel}>Why are you interested in this</label>
                     <textarea style={styles.formTextarea} rows={3}></textarea>
                   </div>
 
-                  {/* Content Idea Field */}
                   <div style={styles.formGroup}>
                     <label style={styles.formLabel}>Your Content Idea / Concept</label>
                     <textarea style={styles.formTextarea} rows={3}></textarea>
                   </div>
 
-                  {/* Expected Fee Range */}
                   <div style={styles.formGroup}>
                     <label style={styles.formLabel}>Expected Fee Range</label>
                     <input type="text" style={styles.formInput} />
                   </div>
 
-                  {/* Availability Date and Number of Deliverables */}
                   <div style={styles.formRow}>
                     <div style={styles.formGroupHalf}>
                       <label style={styles.formLabel}>Availability Date</label>
@@ -463,7 +458,6 @@ export default function MessagesPage() {
                     </div>
                   </div>
 
-                  {/* Platform Checkboxes */}
                   <div style={styles.checkboxGrid}>
                     <label style={styles.checkboxLabel}>
                       <input type="checkbox" style={styles.checkbox} />
@@ -491,13 +485,11 @@ export default function MessagesPage() {
                     </label>
                   </div>
 
-                  {/* Past Relevant Campaigns */}
                   <div style={styles.formGroup}>
                     <label style={styles.formLabel}>Past Relevant Campaigns</label>
                     <textarea style={styles.formTextarea} rows={3} placeholder="🔗"></textarea>
                   </div>
 
-                  {/* Action Buttons */}
                   <div style={styles.formActions}>
                     <button style={styles.declineButton} onClick={handleDecline}>Decline</button>
                     <button style={styles.acceptButton} onClick={handleAccept}>Accept</button>
@@ -645,7 +637,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   messageInputContainer: { padding: '25px 40px', borderTop: '1px solid #f0f0f0' },
   messageInputBar: { height: '50px', background: '#f5f7fa', borderRadius: '25px' },
 
-  // Jobs Form Styles
   jobsHeader: {
     padding: '25px 40px',
     borderBottom: '1px solid #f0f0f0',
@@ -765,7 +756,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: 'all 0.2s',
   },
 
-  // Modal Styles
   modalOverlay: {
     position: 'fixed',
     top: 0,

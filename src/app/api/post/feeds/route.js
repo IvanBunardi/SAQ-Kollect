@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Post from '@/models/Post';
 import { verifyToken } from '@/lib/auth';
+import User from "@/models/User";
 
 export async function GET(request) {
   try {

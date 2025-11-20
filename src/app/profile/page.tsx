@@ -4,14 +4,16 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import PostModal from '../../components/PostModal'
 
 interface Post {
   _id: string;
   user: {
     _id: string;
-    name: string;
+    name?: string;
     username: string;
     profilePhoto?: string;
+    profilePicture?: string;
   };
   type: string;
   caption: string;
@@ -42,9 +44,11 @@ export default function ProfilePage() {
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
   
-  // ✅ DECLARE STATE DI SINI
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  
+  // ✅ STATE FOR MODAL
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   
   const router = useRouter();
 
@@ -86,7 +90,6 @@ export default function ProfilePage() {
       if (data.success && data.user) {
         setUserData(data.user);
         
-        // ✅ SET REAL FOLLOWERS/FOLLOWING COUNT
         setFollowersCount(data.user.followersCount || 0);
         setFollowingCount(data.user.followingCount || 0);
         
@@ -421,7 +424,6 @@ export default function ProfilePage() {
                 </div>
               )}
               
-              {/* ✅ DISPLAY REAL FOLLOWERS/FOLLOWING COUNT */}
               <div style={styles.profileStats}>
                 <span style={styles.stat}><strong>{followersCount}</strong> followers</span>
                 <span style={styles.stat}><strong>{followingCount}</strong> following</span>
@@ -512,10 +514,9 @@ export default function ProfilePage() {
                           cursor: 'pointer',
                           position: 'relative'
                         }}
-                        onClick={() => router.push(`/post/${post._id}`)}
+                        onClick={() => setSelectedPostId(post._id)}
                       >
                         {post.mediaUrl ? (
-                          // ✅ CHECK IF VIDEO OR IMAGE
                           post.type === 'video' ? (
                             <video 
                               src={post.mediaUrl} 
@@ -535,7 +536,6 @@ export default function ProfilePage() {
                           </div>
                         )}
                         
-                        {/* ✅ VIDEO INDICATOR ICON */}
                         {post.type === 'video' && (
                           <div style={{
                             position: 'absolute',
@@ -592,7 +592,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Full Posts Grid */}
           <div style={{marginTop: '40px'}}>
             <h2 style={{fontSize: '24px', fontWeight: '600', marginBottom: '20px'}}>
               All Posts ({posts.length})
@@ -640,9 +639,8 @@ export default function ProfilePage() {
                       cursor: 'pointer',
                       position: 'relative'
                     }}
-                    onClick={() => router.push(`/post/${post._id}`)}
+                    onClick={() => setSelectedPostId(post._id)}
                   >
-                    {/* ✅ CHECK IF VIDEO OR IMAGE */}
                     {post.type === 'video' ? (
                       <video 
                         src={post.mediaUrl} 
@@ -657,7 +655,6 @@ export default function ProfilePage() {
                       />
                     )}
                     
-                    {/* ✅ VIDEO PLAY ICON OVERLAY */}
                     {post.type === 'video' && (
                       <div style={{
                         position: 'absolute',
@@ -691,6 +688,14 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* ✅ POST MODAL */}
+      {selectedPostId && (
+        <PostModal 
+          postId={selectedPostId} 
+          onClose={() => setSelectedPostId(null)} 
+        />
+      )}
     </>
   );
 }
@@ -786,7 +791,6 @@ const styles = {
   cardHeader: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' },
   cardTitle: { margin: 0, fontSize: '18px', fontWeight: '600' as const, color: 'white' },
   cardContent: { flex: 1 },
-  campaignPreview: { width: '100%', height: '200px', background: 'white', borderRadius: '16px' },
   metricsGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px' },
   metricBox: { background: 'white', borderRadius: '16px', padding: '20px', textAlign: 'center' as const },
   metricValue: { margin: 0, fontSize: '28px', fontWeight: '700' as const, color: '#111', marginBottom: '5px' },

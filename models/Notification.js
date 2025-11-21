@@ -13,8 +13,17 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['like', 'comment', 'follow', 'mention'],
+    enum: [
+      'like', 'comment', 'follow', 'mention',
+      'campaign_invite', 'campaign_accepted', 'campaign_declined',
+      'work_submitted', 'work_approved', 'work_revision',
+      'system'
+    ],
     required: true
+  },
+  message: {
+    type: String,
+    default: ''
   },
   post: {
     type: mongoose.Schema.Types.ObjectId,
@@ -26,9 +35,21 @@ const notificationSchema = new mongoose.Schema({
     ref: 'Comment',
     default: null
   },
-  message: {
-    type: String,
-    default: ''
+  // ✅ TAMBAH INI!
+  campaign: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Campaign',
+    default: null
+  },
+  // ✅ TAMBAH INI!
+  work: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Work',
+    default: null
+  },
+  data: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   },
   isRead: {
     type: Boolean,
@@ -38,7 +59,6 @@ const notificationSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index untuk query cepat
 notificationSchema.index({ recipient: 1, createdAt: -1 });
 notificationSchema.index({ recipient: 1, isRead: 1 });
 

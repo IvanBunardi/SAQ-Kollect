@@ -8,15 +8,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 export default function HireCampaignPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const targetUsername = searchParams.get('kol') || ''; // Get KOL username from URL if any
+  const targetUsername = searchParams.get('kol') || '';
 
-  const [activeNav, setActiveNav] = useState('profile');
   const [currentStep, setCurrentStep] = useState(1);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // ✅ Form Data State
   const [formData, setFormData] = useState({
     campaignName: '',
     brandName: '',
@@ -27,16 +25,15 @@ export default function HireCampaignPage() {
     startDate: '',
     deadline: '',
     contentTypes: [] as string[],
-    requirements: ''
+    requirements: '',
+    targetKolUsername: targetUsername
   });
 
-  // ✅ Handle Input Changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // ✅ Handle Checkbox Changes
   const handleContentTypeChange = (type: string) => {
     setFormData(prev => ({
       ...prev,
@@ -47,7 +44,6 @@ export default function HireCampaignPage() {
   };
 
   const handleNext = () => {
-    // Validate step 1
     if (!formData.campaignName.trim()) {
       setError('Please enter a campaign name');
       return;
@@ -68,9 +64,7 @@ export default function HireCampaignPage() {
     }
   };
 
-  // ✅ Submit Campaign to API
   const handleSend = async () => {
-    // Validate step 2
     if (formData.contentTypes.length === 0) {
       setError('Please select at least one content type');
       return;
@@ -87,7 +81,7 @@ export default function HireCampaignPage() {
         },
         credentials: 'include',
         body: JSON.stringify({
-          targetKolUsername: targetUsername || null,
+          targetKolUsername: formData.targetKolUsername || null,
           campaignName: formData.campaignName,
           brandName: formData.brandName,
           industry: formData.industry,
@@ -106,6 +100,10 @@ export default function HireCampaignPage() {
       if (data.success) {
         console.log('✅ Campaign created:', data);
         setShowSuccessModal(true);
+        
+        setTimeout(() => {
+          router.push('/notifications?tab=campaigns');
+        }, 2000);
       } else {
         setError(data.message || 'Failed to send campaign request');
       }
@@ -134,7 +132,6 @@ export default function HireCampaignPage() {
         body { margin: 0; padding: 0; overflow-x: hidden; }
       `}</style>
 
-      {/* Background particles */}
       <div style={styles.particles}>
         <div style={{...styles.particle, width: '280px', height: '280px', background: '#5B8EF5', top: '5%', left: '5%'}}></div>
         <div style={{...styles.particle, width: '180px', height: '180px', background: '#F48FB1', top: '15%', left: '8%', animationDelay: '1.5s'}}></div>
@@ -145,7 +142,6 @@ export default function HireCampaignPage() {
       </div>
 
       <div style={styles.container}>
-        {/* Sidebar */}
         <div style={styles.sidebar}>
           <div style={styles.logo}>
             <Image src="/assets/logo-full.png" alt="Kollect Logo" width={200} height={106} style={{objectFit: 'contain'}} />
@@ -222,9 +218,7 @@ export default function HireCampaignPage() {
           </div>
         </div>
 
-        {/* Main Content */}
         <div style={styles.mainContent}>
-          {/* Header */}
           <div style={styles.header}>
             <button style={styles.backButton} onClick={handleBack}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -233,12 +227,8 @@ export default function HireCampaignPage() {
               <span>Back</span>
             </button>
             <h1 style={styles.pageTitle}>Hire for Campaign</h1>
-            {targetUsername && (
-              <p style={styles.targetInfo}>Hiring: @{targetUsername}</p>
-            )}
           </div>
 
-          {/* Progress Steps */}
           <div style={styles.progressSteps}>
             <div style={{...styles.step, ...(currentStep >= 1 ? styles.stepActive : {})}}>
               <div style={styles.stepNumber}>1</div>
@@ -251,12 +241,10 @@ export default function HireCampaignPage() {
             </div>
           </div>
 
-          {/* Error Message */}
           {error && (
             <div style={styles.errorBox}>{error}</div>
           )}
 
-          {/* Form Container */}
           <div style={styles.formContainer}>
             {currentStep === 1 && (
               <>
@@ -323,6 +311,22 @@ export default function HireCampaignPage() {
                       rows={3}
                       placeholder="Describe your target audience demographics, interests, etc."
                     ></textarea>
+                  </div>
+
+                  {/* ✅ NEW: Target KOL Username */}
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Target KOL Username (Optional)</label>
+                    <input 
+                      type="text" 
+                      name="targetKolUsername"
+                      value={formData.targetKolUsername}
+                      onChange={handleInputChange}
+                      style={styles.input} 
+                      placeholder="e.g. @username - leave empty to make campaign open for all"
+                    />
+                    <p style={{margin: '8px 0 0 0', fontSize: '12px', color: '#999'}}>
+                      If you specify a KOL, the campaign will be sent as a direct invite. Leave empty to make it public.
+                    </p>
                   </div>
                 </div>
 
@@ -438,7 +442,6 @@ export default function HireCampaignPage() {
         </div>
       </div>
 
-      {/* Success Modal */}
       {showSuccessModal && (
         <>
           <div style={styles.modalOverlay}></div>
@@ -458,15 +461,9 @@ export default function HireCampaignPage() {
               </svg>
             </div>
             <p style={styles.modalText}>
-              {targetUsername 
-                ? `Your campaign request has been sent to @${targetUsername}!`
-                : 'Your campaign has been created!'
-              }
+              Your campaign has been created!
             </p>
-            <p style={styles.modalSubtext}>Please wait for their reply!</p>
-            <button style={styles.backToHomeButton} onClick={handleBackToHome}>
-              Back to Home
-            </button>
+            <p style={styles.modalSubtext}>Redirecting to your campaigns...</p>
           </div>
         </>
       )}
@@ -511,7 +508,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     boxShadow: '0 4px 12px rgba(236, 64, 122, 0.3)', transition: 'all 0.2s',
   },
   pageTitle: { margin: '0 0 8px 0', fontSize: '36px', fontWeight: '700', color: '#111' },
-  targetInfo: { margin: 0, fontSize: '16px', color: '#e357a3', fontWeight: '600' },
 
   progressSteps: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '30px' },
   step: { display: 'flex', alignItems: 'center', gap: '8px', color: '#999' },
@@ -581,10 +577,5 @@ const styles: { [key: string]: React.CSSProperties } = {
   modalTitle: { margin: '0 0 20px 0', fontSize: '32px', fontWeight: '700', color: '#111' },
   checkmarkContainer: { marginBottom: '20px', display: 'flex', justifyContent: 'center' },
   modalText: { margin: '0 0 8px 0', fontSize: '16px', color: '#333', fontWeight: '500' },
-  modalSubtext: { margin: '0 0 30px 0', fontSize: '14px', color: '#666' },
-  backToHomeButton: {
-    padding: '14px 40px', background: 'linear-gradient(135deg, #EC407A, #F48FB1)', color: 'white',
-    border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: '600', cursor: 'pointer',
-    transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(236, 64, 122, 0.3)',
-  },
+  modalSubtext: { margin: 0, fontSize: '14px', color: '#666' },
 };

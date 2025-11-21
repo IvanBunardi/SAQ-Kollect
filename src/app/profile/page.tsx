@@ -60,7 +60,6 @@ export default function ProfilePage() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   
-  // ✅ METRICS STATE
   const [metrics, setMetrics] = useState<Metrics>({
     avgEngagementRate: 0,
     avgLikesPerPost: 0,
@@ -76,8 +75,8 @@ export default function ProfilePage() {
   });
   const [metricsLoading, setMetricsLoading] = useState(true);
   
-  // ✅ STATE FOR MODAL
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
   
   const router = useRouter();
 
@@ -153,7 +152,6 @@ export default function ProfilePage() {
     }
   };
 
-  // ✅ FETCH REAL METRICS
   const fetchMetrics = async () => {
     try {
       setMetricsLoading(true);
@@ -175,7 +173,6 @@ export default function ProfilePage() {
     }
   };
 
-  // ✅ FORMAT NUMBER HELPER
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
@@ -257,6 +254,32 @@ export default function ProfilePage() {
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName || 'User')}&background=random&size=150&bold=true`;
   };
 
+  const selectedPost = selectedPostId ? posts.find(p => p._id === selectedPostId) : null;
+
+  const handlePostComment = async () => {
+    if (!commentText.trim() || !selectedPost) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/post/${selectedPost._id}/comment`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: commentText }),
+      });
+
+      if (res.ok) {
+        setCommentText('');
+        // Refresh posts to show updated comment count
+        fetchUserPosts();
+      }
+    } catch (err) {
+      console.error('Error posting comment:', err);
+    }
+  };
+
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
@@ -292,6 +315,156 @@ export default function ProfilePage() {
         }
         body { margin: 0; padding: 0; overflow-x: hidden; }
       `}</style>
+
+      {/* ✅ MODAL */}
+      {selectedPost && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000
+        }}
+        onClick={() => setSelectedPostId(null)}
+        >
+          <div style={{
+            background: 'white', borderRadius: '20px', maxWidth: '900px',
+            width: '90%', maxHeight: '80vh', overflow: 'auto',
+            display: 'grid', gridTemplateColumns: '1fr 400px',
+            position: 'relative'
+          }}
+          onClick={(e) => e.stopPropagation()}
+          >
+            {/* Media */}
+            <div style={{
+              background: '#000', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', minHeight: '500px'
+            }}>
+              {selectedPost.type === 'video' ? (
+                <video src={selectedPost.mediaUrl} style={{
+                  maxWidth: '100%', maxHeight: '100%', objectFit: 'contain'
+                }} controls autoPlay />
+              ) : (
+                <img src={selectedPost.mediaUrl} alt="Post" style={{
+                  maxWidth: '100%', maxHeight: '100%', objectFit: 'contain'
+                }} />
+              )}
+            </div>
+
+            {/* Details Sidebar */}
+            <div style={{
+              padding: '24px', display: 'flex', flexDirection: 'column',
+              background: '#f9f9f9', overflow: 'auto'
+            }}>
+              {/* Close Button */}
+              <button style={{
+                position: 'absolute', top: '16px', right: '16px',
+                background: 'white', border: 'none', width: '36px', height: '36px',
+                borderRadius: '50%', cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', zIndex: 1001,
+                fontSize: '20px', fontWeight: 'bold'
+              }}
+              onClick={() => setSelectedPostId(null)}
+              >
+                ✕
+              </button>
+
+              {/* Author */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', marginTop: '10px' }}>
+                <img src={getAvatarUrl(selectedPost.user.profilePhoto, selectedPost.user.profilePicture, selectedPost.user.name)}
+                  alt="User" style={{
+                    width: '44px', height: '44px', borderRadius: '50%',
+                    objectFit: 'cover'
+                  }}
+                />
+                <div>
+                  <p style={{ margin: 0, fontWeight: '600', color: '#111' }}>
+                    {selectedPost.user.name || selectedPost.user.username}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#666' }}>
+                    @{selectedPost.user.username}
+                  </p>
+                </div>
+              </div>
+
+              {/* Caption */}
+              <p style={{
+                fontSize: '15px', color: '#333', marginBottom: '16px',
+                lineHeight: '1.5', borderBottom: '1px solid #e0e0e0',
+                paddingBottom: '16px'
+              }}>
+                {selectedPost.caption}
+              </p>
+
+              {/* Location */}
+              {selectedPost.location && (
+                <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>
+                  📍 {selectedPost.location}
+                </p>
+              )}
+
+              {/* Stats */}
+              <div style={{
+                display: 'flex', gap: '16px', padding: '16px 0',
+                borderTop: '1px solid #e0e0e0', borderBottom: '1px solid #e0e0e0'
+              }}>
+                <span style={{ fontSize: '14px', color: '#333' }}>
+                  <strong>❤️ {selectedPost.likesCount}</strong> likes
+                </span>
+                <span style={{ fontSize: '14px', color: '#333' }}>
+                  <strong>💬 {selectedPost.commentsCount}</strong> comments
+                </span>
+                <span style={{ fontSize: '14px', color: '#333' }}>
+                  <strong>🔖 {selectedPost.savesCount}</strong> saves
+                </span>
+              </div>
+
+              {/* Date */}
+              <p style={{
+                fontSize: '12px', color: '#999', marginTop: '16px'
+              }}>
+                {new Date(selectedPost.createdAt).toLocaleDateString('en-US', {
+                  month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                })}
+              </p>
+
+              {/* Comments Section */}
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #e0e0e0', flex: 1, overflow: 'auto' }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600' }}>Comments</h3>
+                <div style={{ fontSize: '13px', color: '#999', textAlign: 'center', padding: '20px' }}>
+                  💬 Comments coming soon!
+                </div>
+              </div>
+
+              {/* Comment Input */}
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e0e0e0' }}>
+                <textarea
+                  placeholder="Add a comment..."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  style={{
+                    width: '100%', padding: '12px', border: '1px solid #e0e0e0',
+                    borderRadius: '8px', fontSize: '13px', fontFamily: 'inherit',
+                    boxSizing: 'border-box', resize: 'none'
+                  }}
+                  rows={2}
+                />
+                <button 
+                  onClick={handlePostComment}
+                  disabled={!commentText.trim()}
+                  style={{
+                    width: '100%', marginTop: '8px', padding: '10px',
+                    background: commentText.trim() ? '#e357a3' : '#ddd', 
+                    color: 'white', border: 'none',
+                    borderRadius: '8px', fontSize: '13px', fontWeight: '600',
+                    cursor: commentText.trim() ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  Post Comment
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={styles.circles}>
         <div style={{...styles.circle, ...styles.blue, ...styles.huge, top: '-180px', left: '-180px'}}></div>
@@ -549,7 +722,7 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* ✅ PERFORMANCE METRICS - REAL DATA! */}
+            {/* Performance Metrics */}
             <div style={{...styles.card, background: 'linear-gradient(135deg, #e357a3, #f4a3c8)'}}>
               <div style={styles.cardHeader}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
@@ -579,7 +752,6 @@ export default function ProfilePage() {
                 </div>
               </div>
               
-              {/* ✅ ADDITIONAL STATS */}
               <div style={{marginTop: '16px', display: 'flex', gap: '20px', flexWrap: 'wrap'}}>
                 <div style={{background: 'rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: '20px'}}>
                   <span style={{color: 'white', fontSize: '13px'}}>❤️ {formatNumber(metrics.totalLikes)} likes</span>
@@ -634,7 +806,6 @@ export default function ProfilePage() {
                       <img src={post.mediaUrl} alt="Post" style={{width: '100%', height: '100%', objectFit: 'cover'}} />
                     )}
                     
-                    {/* Hover overlay with stats */}
                     <div style={{
                       position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',

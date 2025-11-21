@@ -39,13 +39,6 @@ export async function POST(request) {
       );
     }
 
-    // Check active status
-    if (!user.isActive) {
-      return NextResponse.json(
-        { success: false, message: "Account is inactive" },
-        { status: 403 }
-      );
-    }
 
     // Generate JWT
     const token = jwt.sign(

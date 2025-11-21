@@ -47,6 +47,12 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     fetchNotifications();
+    
+    // ✅ CHECK IF REDIRECTED FROM CAMPAIGN CREATION
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tab') === 'campaigns') {
+      setActiveTab('campaigns');
+    }
   }, []);
 
   const fetchNotifications = async () => {
@@ -59,10 +65,7 @@ export default function NotificationsPage() {
         const data = await res.json();
         console.log('✅ Notifications loaded:', data.notifications?.length || 0);
         setNotifications(data.notifications || []);
-      } else {
-        console.error('Failed to load notifications');
-        setNotifications([]);
-      }
+      } 
     } catch (err) {
       console.error('❌ Error fetching notifications:', err);
       setNotifications([]);
@@ -87,7 +90,6 @@ export default function NotificationsPage() {
     }
   };
 
-  // ✅ Handle Campaign Response (Accept/Reject)
   const handleCampaignResponse = async (campaignId: string, action: 'accept' | 'reject') => {
     if (!campaignId) {
       alert('Campaign ID not found');
@@ -109,12 +111,10 @@ export default function NotificationsPage() {
       if (data.success) {
         alert(data.message);
         
-        // Update notification as read
         setNotifications(prev => prev.map(n => 
           n.data?.campaignId === campaignId ? { ...n, isRead: true } : n
         ));
         
-        // Refresh notifications
         fetchNotifications();
         
         if (action === 'accept') {
@@ -204,7 +204,6 @@ export default function NotificationsPage() {
       </div>
 
       <div style={styles.container}>
-        {/* Sidebar */}
         <div style={styles.sidebar}>
           <div style={styles.logo}>
             <Image src="/assets/logo-full.png" alt="Kollect Logo" width={200} height={106} style={{objectFit: 'contain'}} />
@@ -281,7 +280,6 @@ export default function NotificationsPage() {
           </div>
         </div>
 
-        {/* Main Content */}
         <div style={styles.mainContent}>
           <div style={styles.header}>
             <h1 style={styles.pageTitle}>Notifications</h1>
@@ -290,7 +288,6 @@ export default function NotificationsPage() {
             </button>
           </div>
 
-          {/* Tabs */}
           <div style={styles.tabs}>
             {['all', 'campaigns', 'likes', 'comments', 'follows'].map(tab => (
               <button 
@@ -303,7 +300,6 @@ export default function NotificationsPage() {
             ))}
           </div>
 
-          {/* Notifications List */}
           {loading ? (
             <div style={{textAlign: 'center', padding: '60px', fontSize: '16px', color: '#666'}}>
               Loading notifications...
@@ -355,7 +351,6 @@ export default function NotificationsPage() {
                         {' '}{notif.message}
                       </p>
                       
-                      {/* ✅ CAMPAIGN INVITE DETAILS */}
                       {notif.type === 'campaign_invite' && notif.data && (
                         <div style={styles.campaignDetails}>
                           <p style={styles.campaignName}>📋 {notif.data.campaignName}</p>
@@ -368,7 +363,6 @@ export default function NotificationsPage() {
                             </p>
                           )}
                           
-                          {/* ✅ ACCEPT / REJECT BUTTONS */}
                           <div style={styles.campaignActions}>
                             <button
                               style={{
@@ -483,7 +477,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   notificationTime: { margin: 0, fontSize: '13px', color: '#999' },
   
-  // ✅ Campaign Invite Styles
   campaignDetails: {
     margin: '12px 0', padding: '16px', background: '#f8f4ff',
     borderRadius: '12px', border: '1px solid #e8e0f0',

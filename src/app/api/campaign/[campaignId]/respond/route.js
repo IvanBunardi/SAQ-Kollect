@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Campaign from "@/models/Campaign";
-import Work from "@/models/Work";
+import Work from "@/src/models/Work";
 import User from "@/models/User";
 import Notification from "@/models/Notification";
 import jwt from "jsonwebtoken";

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Notification from "@/models/Notification";
+import User from "@/models/User";
+import Post from "@/models/Post";
+import Campaign from "@/models/Campaign";
 import jwt from "jsonwebtoken";
 
 // GET - Fetch user's notifications
@@ -28,39 +31,50 @@ export async function GET(request) {
     }
 
     const userId = decoded.userId;
+    console.log('📬 Fetching notifications for:', userId);
 
     const notifications = await Notification.find({ recipient: userId })
       .populate('sender', 'username fullname profilePhoto profilePicture')
       .populate('post', 'caption mediaUrl')
+      .populate('campaign', 'title')
       .sort({ createdAt: -1 })
       .limit(50)
       .lean();
 
+    console.log('📬 Found notifications:', notifications.length);
+
+    const formattedNotifications = notifications.map(n => ({
+      id: n._id.toString(),
+      type: n.type,
+      sender: n.sender ? {
+        id: n.sender._id.toString(),
+        username: n.sender.username,
+        fullname: n.sender.fullname,
+        profilePhoto: n.sender.profilePhoto,
+        profilePicture: n.sender.profilePicture
+      } : null,
+      message: n.message,
+      post: n.post ? {
+        id: n.post._id.toString(),
+        caption: n.post.caption,
+        mediaUrl: n.post.mediaUrl
+      } : null,
+      campaign: n.campaign ? {
+        id: n.campaign._id.toString(),
+        title: n.campaign.title
+      } : null,
+      data: n.data || {},
+      isRead: n.isRead,
+      createdAt: n.createdAt
+    }));
+
     return NextResponse.json({
       success: true,
-      notifications: notifications.map(n => ({
-        id: n._id.toString(),
-        type: n.type,
-        sender: {
-          id: n.sender._id.toString(),
-          username: n.sender.username,
-          fullname: n.sender.fullname,
-          profilePhoto: n.sender.profilePhoto,
-          profilePicture: n.sender.profilePicture
-        },
-        message: n.message,
-        post: n.post ? {
-          id: n.post._id.toString(),
-          caption: n.post.caption,
-          mediaUrl: n.post.mediaUrl
-        } : null,
-        isRead: n.isRead,
-        createdAt: n.createdAt
-      }))
+      notifications: formattedNotifications
     }, { status: 200 });
 
   } catch (err) {
-    console.error("❌ API ERROR /notifications:", err);
+    console.error("❌ API ERROR GET /notifications:", err);
     return NextResponse.json(
       { success: false, message: "Server error", error: err.message },
       { status: 500 }
@@ -92,18 +106,14 @@ export async function PUT(request) {
       );
     }
 
-    const userId = decoded.userId;
-
     await Notification.updateMany(
-      { recipient: userId, isRead: false },
+      { recipient: decoded.userId, isRead: false },
       { isRead: true }
     );
 
-    console.log(`✅ Marked all notifications as read for user ${userId}`);
-
     return NextResponse.json({
       success: true,
-      message: "All notifications marked as read"
+      message: "All marked as read"
     }, { status: 200 });
 
   } catch (err) {

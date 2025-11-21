@@ -5,13 +5,16 @@ import type { CSSProperties, ChangeEvent, FormEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from "../../components/LanguageProvider";
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { language, setLanguage, t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeNav, setActiveNav] = useState<string>('settings');
   const [activeSettingsTab, setActiveSettingsTab] = useState<string>('edit-profil');
   const [selectedGender, setSelectedGender] = useState<string>('Memilih tidak memberi tahu');
+  
   
   type User = {
     fullname?: string;
@@ -31,7 +34,40 @@ export default function SettingsPage() {
   const [error, setError] = useState<string>('');
   const [saveSuccess, setSaveSuccess] = useState<string>('');
   const [saveError, setSaveError] = useState<string>('');
-  
+
+  // Language state
+  const [selectedLanguage, setSelectedLanguageState] = useState<string>(language);
+  const [languageLoading, setLanguageLoading] = useState<boolean>(false);
+
+  // Notification state
+  const [notificationSettings, setNotificationSettings] = useState({
+    likes: true,
+    comments: true,
+    follows: true,
+    mentions: true,
+    campaigns: true,
+    messages: true,
+    email: true,
+    push: true
+  });
+  const [notificationLoading, setNotificationLoading] = useState<boolean>(false);
+
+  // Privacy state
+  const [privacySettings, setPrivacySettings] = useState({
+    isPrivate: false,
+    showActivity: true,
+    showEmail: false
+  });
+  const [privacyLoading, setPrivacyLoading] = useState<boolean>(false);
+
+  // Blocked users state
+  const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
+  const [blockedLoading, setBlockedLoading] = useState<boolean>(false);
+
+  // Close friends state
+  const [closeFriends, setCloseFriends] = useState<any[]>([]);
+  const [closeFriendsLoading, setCloseFriendsLoading] = useState<boolean>(false);
+
   // Form data
   type ProfileForm = {
     fullname: string;
@@ -54,6 +90,15 @@ export default function SettingsPage() {
     fetchUserProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fetch respective data when tab changes
+  useEffect(() => {
+    if (activeSettingsTab === 'language') fetchLanguage();
+    if (activeSettingsTab === 'notifications') fetchNotificationSettings();
+    if (activeSettingsTab === 'account-privacy') fetchPrivacySettings();
+    if (activeSettingsTab === 'blocked') fetchBlockedUsers();
+    if (activeSettingsTab === 'close-friend') fetchCloseFriends();
+  }, [activeSettingsTab]);
 
   const fetchUserProfile = async () => {
     try {
@@ -92,7 +137,7 @@ export default function SettingsPage() {
         setSelectedGender(u.gender || 'Memilih tidak memberi tahu');
         console.log('✅ User data loaded successfully:', u.username);
       } else {
-        setError(data.message || 'Failed to load profile');
+        setError(data.message || t('failedLoadProfile'));
         console.error('❌ API error:', data.message);
         
         if (response.status === 401) {
@@ -103,15 +148,238 @@ export default function SettingsPage() {
       }
     } catch (err) {
       console.error('❌ Profile fetch error:', err);
-      setError('Failed to load profile');
+      setError(t('failedLoadProfile'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  // Language functions
+  const fetchLanguage = async () => {
+    try {
+      const response = await fetch('/api/settings/language', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSelectedLanguageState(data.language);
+      }
+    } catch (err) {
+      console.error('❌ Error fetching language:', err);
+    }
+  };
+
+  const handleLanguageChange = async (newLanguage: string) => {
+    setLanguageLoading(true);
+    try {
+      const response = await fetch('/api/settings/language', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ language: newLanguage })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSelectedLanguageState(newLanguage);
+        setSaveSuccess(t('languageUpdated'));
+        setTimeout(() => setSaveSuccess(''), 3000);
+        // Call setLanguage to update global language
+        setLanguage(newLanguage as any);
+      }
+    } catch (err) {
+      console.error('❌ Error updating language:', err);
+      setSaveError(t('failedUpdateLanguage'));
+      setTimeout(() => setSaveError(''), 3000);
+    } finally {
+      setLanguageLoading(false);
+    }
+  };
+
+  // Notification functions
+  const fetchNotificationSettings = async () => {
+    try {
+      setNotificationLoading(true);
+      const response = await fetch('/api/settings/notifications', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (data.success) {
+        setNotificationSettings(data.notificationSettings);
+      }
+    } catch (err) {
+      console.error('❌ Error fetching notifications:', err);
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
+
+  const handleNotificationToggle = async (key: string) => {
+    const newSettings = { ...notificationSettings, [key]: !notificationSettings[key as keyof typeof notificationSettings] };
+    setNotificationSettings(newSettings);
+
+    try {
+      const response = await fetch('/api/settings/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ notificationSettings: newSettings })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSaveSuccess(t('notificationSettingsUpdated'));
+        setTimeout(() => setSaveSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error('❌ Error updating notifications:', err);
+      setSaveError(t('failedUpdateNotifications'));
+      setTimeout(() => setSaveError(''), 3000);
+    }
+  };
+
+  // Privacy functions
+  const fetchPrivacySettings = async () => {
+    try {
+      setPrivacyLoading(true);
+      const response = await fetch('/api/settings/privacy', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (data.success) {
+        setPrivacySettings(data.privacySettings);
+      }
+    } catch (err) {
+      console.error('❌ Error fetching privacy settings:', err);
+    } finally {
+      setPrivacyLoading(false);
+    }
+  };
+
+  const handlePrivacyToggle = async (key: string) => {
+    const newSettings = { ...privacySettings, [key]: !privacySettings[key as keyof typeof privacySettings] };
+    setPrivacySettings(newSettings);
+
+    try {
+      const response = await fetch('/api/settings/privacy', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(newSettings)
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSaveSuccess(t('privacySettingsUpdated'));
+        setTimeout(() => setSaveSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error('❌ Error updating privacy:', err);
+      setSaveError(t('failedUpdatePrivacy'));
+      setTimeout(() => setSaveError(''), 3000);
+    }
+  };
+
+  // Blocked users functions
+  const fetchBlockedUsers = async () => {
+    try {
+      setBlockedLoading(true);
+      const response = await fetch('/api/settings/blocked', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (data.success) {
+        setBlockedUsers(data.blockedUsers);
+      }
+    } catch (err) {
+      console.error('❌ Error fetching blocked users:', err);
+    } finally {
+      setBlockedLoading(false);
+    }
+  };
+
+  const handleUnblockUser = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/settings/blocked?userId=${userId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (data.success) {
+        setBlockedUsers(blockedUsers.filter(u => u._id !== userId));
+        setSaveSuccess(t('userUnblocked'));
+        setTimeout(() => setSaveSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error('❌ Error unblocking user:', err);
+      setSaveError(t('failedUnblockUser'));
+      setTimeout(() => setSaveError(''), 3000);
+    }
+  };
+
+  // Close friends functions
+  const fetchCloseFriends = async () => {
+    try {
+      setCloseFriendsLoading(true);
+      const response = await fetch('/api/settings/close-friends', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (data.success) {
+        setCloseFriends(data.closeFriends);
+      }
+    } catch (err) {
+      console.error('❌ Error fetching close friends:', err);
+    } finally {
+      setCloseFriendsLoading(false);
+    }
+  };
+
+  const handleRemoveCloseFriend = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/settings/close-friends?userId=${userId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (data.success) {
+        setCloseFriends(closeFriends.filter(u => u._id !== userId));
+        setSaveSuccess(t('closeFriendRemoved'));
+        setTimeout(() => setSaveSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error('❌ Error removing close friend:', err);
+      setSaveError(t('failedRemoveCloseFriend'));
+      setTimeout(() => setSaveError(''), 3000);
+    }
+  };
+
+  // Export data function
+  const handleExportData = async (format: 'json' | 'csv') => {
+    try {
+      const response = await fetch(`/api/settings/export?format=${format}&type=all`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) throw new Error('Export failed');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kollect_data_${Date.now()}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      setSaveSuccess(format === 'json' ? t('dataExportedJSON') : t('dataExportedCSV'));
+      setTimeout(() => setSaveSuccess(''), 3000);
+    } catch (err) {
+      console.error('❌ Error exporting data:', err);
+      setSaveError(t('failedExportData'));
+      setTimeout(() => setSaveError(''), 3000);
+    }
+  };
+
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -136,18 +404,16 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!validTypes.includes(file.type)) {
-      setSaveError('Tipe file tidak valid. Hanya JPEG, PNG, dan WebP yang diperbolehkan.');
+      setSaveError(t('tipeFlageTidakValid'));
       setTimeout(() => setSaveError(''), 3000);
       return;
     }
 
-    // Validate file size (max 5MB)
     const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
-      setSaveError('Ukuran file terlalu besar. Maksimal 5MB.');
+      setSaveError(t('ukuranFileTerlaluBesar'));
       setTimeout(() => setSaveError(''), 3000);
       return;
     }
@@ -182,17 +448,17 @@ export default function SettingsPage() {
 
       if (data.success && data.user) {
         setUserData(data.user as User);
-        setSaveSuccess('Foto profil berhasil diperbarui!');
+        setSaveSuccess(t('fotoBerhasilDiperbarui'));
         console.log('✅ Photo uploaded successfully');
         
         setTimeout(() => setSaveSuccess(''), 3000);
       } else {
-        setSaveError(data.message || 'Gagal mengupload foto');
+        setSaveError(data.message || t('gagalMenguploadFoto'));
         console.error('❌ Upload error:', data.message);
       }
     } catch (err) {
       console.error('❌ Photo upload error:', err);
-      setSaveError('Gagal mengupload foto');
+      setSaveError(t('gagalMenguploadFoto'));
     } finally {
       setPhotoLoading(false);
       if (fileInputRef.current) {
@@ -202,7 +468,7 @@ export default function SettingsPage() {
   };
 
   const handleRemovePhoto = async () => {
-    if (!confirm('Apakah Anda yakin ingin menghapus foto profil?')) {
+    if (!confirm(t('apakahYakinMenghapus'))) {
       return;
     }
 
@@ -233,16 +499,16 @@ export default function SettingsPage() {
 
       if (data.success && data.user) {
         setUserData(data.user as User);
-        setSaveSuccess('Foto profil berhasil dihapus!');
+        setSaveSuccess(t('fotoBerhasilDihapus'));
         console.log('✅ Photo deleted successfully');
         setTimeout(() => setSaveSuccess(''), 3000);
       } else {
-        setSaveError(data.message || 'Gagal menghapus foto');
+        setSaveError(data.message || t('gagalMenghapusFoto'));
         console.error('❌ Delete error:', data.message);
       }
     } catch (err) {
       console.error('❌ Photo delete error:', err);
-      setSaveError('Gagal menghapus foto');
+      setSaveError(t('gagalMenghapusFoto'));
     } finally {
       setPhotoLoading(false);
     }
@@ -284,17 +550,17 @@ export default function SettingsPage() {
 
       if (data.success && data.user) {
         setUserData(data.user as User);
-        setSaveSuccess('Profil berhasil diperbarui!');
+        setSaveSuccess(t('profilBerhasilDiperbarui'));
         console.log('✅ Profile updated successfully');
         
         setTimeout(() => setSaveSuccess(''), 3000);
       } else {
-        setSaveError(data.message || 'Gagal memperbarui profil');
+        setSaveError(data.message || t('gagalMemperbaruiProfil'));
         console.error('❌ Update error:', data.message);
       }
     } catch (err) {
       console.error('❌ Profile update error:', err);
-      setSaveError('Gagal memperbarui profil');
+      setSaveError(t('gagalMemperbaruiProfil'));
     } finally {
       setSaveLoading(false);
     }
@@ -310,7 +576,7 @@ export default function SettingsPage() {
     return (
       <div style={styles.loadingContainer}>
         <div style={styles.spinner}></div>
-        <p>Loading...</p>
+        <p>{t('loading')}</p>
       </div>
     );
   }
@@ -320,7 +586,7 @@ export default function SettingsPage() {
       <div style={styles.errorContainer}>
         <p style={styles.errorText}>{error}</p>
         <button style={styles.btnPrimary} onClick={() => router.push('/login')}>
-          Go to Login
+          {t('goToLogin')}
         </button>
       </div>
     );
@@ -367,62 +633,62 @@ export default function SettingsPage() {
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                 <polyline points="9 22 9 12 15 12 15 22"/>
               </svg>
-              <span>Home</span>
+              <span>{t('home')}</span>
             </Link>
             <Link href="/search" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8"/>
                 <path d="m21 21-4.35-4.35"/>
               </svg>
-              <span>Search</span>
+              <span>{t('search')}</span>
             </Link>
             <Link href="/explore" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10"/>
                 <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
               </svg>
-              <span>Explore</span>
+              <span>{t('explore')}</span>
             </Link>
             <Link href="/messages" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
-              <span>Messages</span>
+              <span>{t('messages')}</span>
             </Link>
             <Link href="/notifications" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
               </svg>
-              <span>Notifications</span>
+              <span>{t('notifications')}</span>
             </Link>
             <Link href="/create" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19"/>
                 <line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-              <span>Create</span>
+              <span>{t('create')}</span>
             </Link>
             <Link href="/profile" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>
               </svg>
-              <span>Profile</span>
+              <span>{t('profile')}</span>
             </Link>
             <Link href="/work" style={styles.navItem}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
                 <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
               </svg>
-              <span>Work</span>
+              <span>{t('work')}</span>
             </Link>
             <Link href="/settings" style={{...styles.navItem, ...(activeNav === 'settings' && styles.navItemActive)}}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="3"/>
                 <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.4 4.4l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.4-4.4l4.2-4.2"/>
               </svg>
-              <span>Settings</span>
+              <span>{t('settings')}</span>
             </Link>
             <button onClick={handleLogout} style={{...styles.navItem, marginTop: 'auto'}}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -430,7 +696,7 @@ export default function SettingsPage() {
                 <polyline points="16 17 21 12 16 7"/>
                 <line x1="21" y1="12" x2="9" y2="12"/>
               </svg>
-              <span>Logout</span>
+              <span>{t('logout')}</span>
             </button>
           </nav>
           
@@ -442,7 +708,7 @@ export default function SettingsPage() {
 
         {/* Settings Menu Panel */}
         <div style={styles.settingsMenu}>
-          <h2 style={styles.settingsTitle}>Pengaturan</h2>
+          <h2 style={styles.settingsTitle}>{t('pengaturan')}</h2>
           
           <div style={styles.settingsMenuList}>
             <button 
@@ -453,7 +719,7 @@ export default function SettingsPage() {
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>
               </svg>
-              <span>Edit profil</span>
+              <span>{t('editProfil')}</span>
             </button>
 
             <button 
@@ -464,7 +730,7 @@ export default function SettingsPage() {
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
               </svg>
-              <span>Notifications</span>
+              <span>{t('notificationsMenu')}</span>
             </button>
 
             <button 
@@ -476,7 +742,7 @@ export default function SettingsPage() {
                 <path d="M12 3v13"/>
                 <path d="m8 12 4 4 4-4"/>
               </svg>
-              <span>Account privacy</span>
+              <span>{t('accountPrivacy')}</span>
             </button>
 
             <button 
@@ -489,7 +755,7 @@ export default function SettingsPage() {
                 <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
               </svg>
-              <span>Close Friend</span>
+              <span>{t('closeFriend')}</span>
             </button>
 
             <button 
@@ -500,7 +766,7 @@ export default function SettingsPage() {
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
               </svg>
-              <span>Blocked</span>
+              <span>{t('blocked')}</span>
             </button>
 
             <button 
@@ -512,7 +778,7 @@ export default function SettingsPage() {
                 <rect x="1" y="3" width="22" height="5"/>
                 <line x1="10" y1="12" x2="14" y2="12"/>
               </svg>
-              <span>Archiving & Downloading</span>
+              <span>{t('archiving')}</span>
             </button>
 
             <button 
@@ -524,30 +790,20 @@ export default function SettingsPage() {
                 <line x1="2" y1="12" x2="22" y2="12"/>
                 <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
               </svg>
-              <span>Language</span>
+              <span>{t('language')}</span>
             </button>
           </div>
         </div>
 
         {/* Content Area */}
         <div style={styles.contentArea}>
+          {saveSuccess && <div style={styles.successMessage}>{saveSuccess}</div>}
+          {saveError && <div style={styles.errorMessage}>{saveError}</div>}
+
           {activeSettingsTab === 'edit-profil' && (
             <div style={styles.content}>
-              <h1 style={styles.contentTitle}>Edit Profil</h1>
+              <h1 style={styles.contentTitle}>{t('editProfilTitle')}</h1>
 
-              {/* Success/Error Messages */}
-              {saveSuccess && (
-                <div style={styles.successMessage}>
-                  {saveSuccess}
-                </div>
-              )}
-              {saveError && (
-                <div style={styles.errorMessage}>
-                  {saveError}
-                </div>
-              )}
-
-              {/* Profile Photo Section */}
               <div style={styles.profilePhotoSection}>
                 <div style={styles.profilePhoto}>
                   {userData?.profilePhoto ? (
@@ -567,7 +823,7 @@ export default function SettingsPage() {
                   )}
                 </div>
                 <div style={styles.profileInfo}>
-                  <h3 style={styles.profileName}>{userData?.username || 'Loading...'}</h3>
+                  <h3 style={styles.profileName}>{userData?.username || t('loading')}</h3>
                 </div>
                 <input
                   ref={fileInputRef}
@@ -581,7 +837,7 @@ export default function SettingsPage() {
                   onClick={handlePhotoClick}
                   disabled={photoLoading}
                 >
-                  {photoLoading ? 'Uploading...' : 'Ubah foto'}
+                  {photoLoading ? t('uploading') : t('ubahFoto')}
                 </button>
                 {userData?.profilePhoto && (
                   <button 
@@ -589,63 +845,62 @@ export default function SettingsPage() {
                     onClick={handleRemovePhoto}
                     disabled={photoLoading}
                   >
-                    Hapus foto
+                    {t('hapusFoto')}
                   </button>
                 )}
               </div>
 
-              {/* Form */}
               <form onSubmit={handleSubmit} style={styles.form}>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Name</label>
+                  <label style={styles.label}>{t('name')}</label>
                   <input 
                     type="text" 
                     name="fullname"
                     style={styles.input}
                     value={formData.fullname}
                     onChange={handleInputChange}
-                    placeholder="Name"
+                    placeholder={t('name')}
                   />
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Username</label>
+                  <label style={styles.label}>{t('username')}</label>
                   <input 
                     type="text" 
                     name="username"
                     style={styles.input}
                     value={formData.username}
                     onChange={handleInputChange}
-                    placeholder="Username"
+                    placeholder={t('username')}
                   />
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Situs Web</label>
+                  <label style={styles.label}>{t('website')}</label>
                   <input 
                     type="text" 
                     name="website"
                     style={styles.input}
                     value={formData.website}
                     onChange={handleInputChange}
-                    placeholder="Situs Web"
+                    placeholder={t('website')}
                   />
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Bio</label>
+                  <label style={styles.label}>{t('bio')}</label>
                   <textarea 
                     name="bio"
                     style={styles.textarea}
                     rows={4}
                     value={formData.bio}
                     onChange={handleInputChange}
-                    placeholder="Bio"
+                    placeholder={t('bio')}
                   />
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Jenis Kelamin</label>
+                  <label style={styles.label}>{t('gender')}</label>
                   <select 
                     name="gender"
                     style={styles.select}
@@ -664,7 +919,7 @@ export default function SettingsPage() {
                   style={{...styles.submitButton, opacity: saveLoading ? 0.6 : 1}}
                   disabled={saveLoading}
                 >
-                  {saveLoading ? 'Menyimpan...' : 'Kirim'}
+                  {saveLoading ? t('menyimpan') : t('kirim')}
                 </button>
               </form>
             </div>
@@ -672,58 +927,181 @@ export default function SettingsPage() {
 
           {activeSettingsTab === 'notifications' && (
             <div style={styles.content}>
-              <h1 style={styles.contentTitle}>Notification</h1>
+              <h1 style={styles.contentTitle}>{t('notificationSettingsTitle')}</h1>
 
-              <div style={styles.notificationList}>
-                <div style={styles.notificationItem}>
-                  <span style={styles.notificationText}>Automatic notifications</span>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2">
-                    <polyline points="9 18 15 12 9 6"/>
-                  </svg>
+              {notificationLoading ? (
+                <p>{t('loading')}</p>
+              ) : (
+                <div style={styles.notificationList}>
+                  {Object.entries(notificationSettings).map(([key, value]) => (
+                    <div key={key} style={styles.notificationItem}>
+                      <span style={styles.notificationText}>
+                        {t(`${key}Notifications`)}
+                      </span>
+                      <div style={styles.toggle}>
+                        <input
+                          type="checkbox"
+                          checked={value}
+                          onChange={() => handleNotificationToggle(key)}
+                          style={{width: '20px', height: '20px', cursor: 'pointer'}}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-
-                <div style={styles.notificationItem}>
-                  <span style={styles.notificationText}>Email notifications</span>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2">
-                    <polyline points="9 18 15 12 9 6"/>
-                  </svg>
-                </div>
-              </div>
+              )}
             </div>
           )}
 
           {activeSettingsTab === 'account-privacy' && (
             <div style={styles.content}>
-              <h1 style={styles.contentTitle}>Account Privacy</h1>
-              <p style={styles.placeholderText}>Account privacy settings will appear here.</p>
+              <h1 style={styles.contentTitle}>{t('accountPrivacyTitle')}</h1>
+
+              {privacyLoading ? (
+                <p>{t('loading')}</p>
+              ) : (
+                <div style={styles.notificationList}>
+                  <div style={styles.notificationItem}>
+                    <div>
+                      <span style={styles.notificationText}>{t('privateAccount')}</span>
+                      <p style={{margin: '4px 0 0 0', fontSize: '13px', color: '#999'}}>{t('privateAccountDesc')}</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={privacySettings.isPrivate}
+                      onChange={() => handlePrivacyToggle('isPrivate')}
+                      style={{width: '20px', height: '20px', cursor: 'pointer'}}
+                    />
+                  </div>
+
+                  <div style={styles.notificationItem}>
+                    <div>
+                      <span style={styles.notificationText}>{t('showActivityStatus')}</span>
+                      <p style={{margin: '4px 0 0 0', fontSize: '13px', color: '#999'}}>{t('showActivityDesc')}</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={privacySettings.showActivity}
+                      onChange={() => handlePrivacyToggle('showActivity')}
+                      style={{width: '20px', height: '20px', cursor: 'pointer'}}
+                    />
+                  </div>
+
+                  <div style={styles.notificationItem}>
+                    <div>
+                      <span style={styles.notificationText}>{t('showEmailAddress')}</span>
+                      <p style={{margin: '4px 0 0 0', fontSize: '13px', color: '#999'}}>{t('showEmailDesc')}</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={privacySettings.showEmail}
+                      onChange={() => handlePrivacyToggle('showEmail')}
+                      style={{width: '20px', height: '20px', cursor: 'pointer'}}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {activeSettingsTab === 'close-friend' && (
             <div style={styles.content}>
-              <h1 style={styles.contentTitle}>Close Friend</h1>
-              <p style={styles.placeholderText}>Close friend settings will appear here.</p>
+              <h1 style={styles.contentTitle}>{t('closeFriendTitle')}</h1>
+
+              {closeFriendsLoading ? (
+                <p>{t('loading')}</p>
+              ) : closeFriends.length === 0 ? (
+                <p style={styles.placeholderText}>{t('closeFriendDesc')}</p>
+              ) : (
+                <div style={styles.userList}>
+                  {closeFriends.map(friend => (
+                    <div key={friend._id} style={styles.userItem}>
+                      <img src={friend.profilePhoto || `https://ui-avatars.com/api/?name=${friend.fullname}`} alt={friend.fullname} style={{width: '40px', height: '40px', borderRadius: '50%'}} />
+                      <div style={{flex: 1}}>
+                        <p style={{margin: 0, fontWeight: '600'}}>{friend.fullname}</p>
+                        <p style={{margin: '2px 0 0 0', fontSize: '12px', color: '#999'}}>@{friend.username}</p>
+                      </div>
+                      <button style={styles.removeBtn} onClick={() => handleRemoveCloseFriend(friend._id)}>{t('remove')}</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {activeSettingsTab === 'blocked' && (
             <div style={styles.content}>
-              <h1 style={styles.contentTitle}>Blocked</h1>
-              <p style={styles.placeholderText}>Blocked accounts will appear here.</p>
+              <h1 style={styles.contentTitle}>{t('blockedTitle')}</h1>
+
+              {blockedLoading ? (
+                <p>{t('loading')}</p>
+              ) : blockedUsers.length === 0 ? (
+                <p style={styles.placeholderText}>{t('blockedDesc')}</p>
+              ) : (
+                <div style={styles.userList}>
+                  {blockedUsers.map(user => (
+                    <div key={user._id} style={styles.userItem}>
+                      <img src={user.profilePhoto || `https://ui-avatars.com/api/?name=${user.fullname}`} alt={user.fullname} style={{width: '40px', height: '40px', borderRadius: '50%'}} />
+                      <div style={{flex: 1}}>
+                        <p style={{margin: 0, fontWeight: '600'}}>{user.fullname}</p>
+                        <p style={{margin: '2px 0 0 0', fontSize: '12px', color: '#999'}}>@{user.username}</p>
+                      </div>
+                      <button style={styles.unblockBtn} onClick={() => handleUnblockUser(user._id)}>{t('unblock')}</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {activeSettingsTab === 'archiving' && (
             <div style={styles.content}>
-              <h1 style={styles.contentTitle}>Archiving & Downloading</h1>
-              <p style={styles.placeholderText}>Archive and download options will appear here.</p>
+              <h1 style={styles.contentTitle}>{t('archivingTitle')}</h1>
+
+              <div style={styles.archiveSection}>
+                <h3 style={{marginTop: 0}}>{t('downloadYourData')}</h3>
+                <p style={{color: '#666', marginBottom: '20px'}}>{t('downloadDataDesc')}</p>
+                
+                <div style={{display: 'flex', gap: '12px'}}>
+                  <button 
+                    style={{...styles.downloadBtn, ...{background: '#4371f0'}}}
+                    onClick={() => handleExportData('json')}
+                  >
+                    {t('downloadAsJSON')}
+                  </button>
+                  <button 
+                    style={{...styles.downloadBtn, ...{background: '#27ae60'}}}
+                    onClick={() => handleExportData('csv')}
+                  >
+                    {t('downloadAsCSV')}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
           {activeSettingsTab === 'language' && (
             <div style={styles.content}>
-              <h1 style={styles.contentTitle}>Language</h1>
-              <p style={styles.placeholderText}>Language settings will appear here.</p>
+              <h1 style={styles.contentTitle}>{t('languageTitle')}</h1>
+
+              <div style={styles.languageSection}>
+                <label style={styles.label}>{t('selectLanguage')}</label>
+                <select 
+                  style={{...styles.select, marginTop: '12px'}}
+                  value={selectedLanguage}
+                  onChange={(e) => handleLanguageChange(e.target.value)}
+                  disabled={languageLoading}
+                >
+                  <option value="en">{t('english')}</option>
+                  <option value="id">{t('indonesian')}</option>
+                  <option value="es">{t('spanish')}</option>
+                  <option value="fr">{t('french')}</option>
+                  <option value="de">{t('german')}</option>
+                  <option value="ja">{t('japanese')}</option>
+                  <option value="zh">{t('chinese')}</option>
+                </select>
+                {languageLoading && <p style={{fontSize: '12px', color: '#999', marginTop: '8px'}}>{t('updating')}</p>}
+              </div>
             </div>
           )}
         </div>
@@ -745,7 +1123,6 @@ const styles: { [key: string]: CSSProperties } = {
 
   container: { display: 'flex', minHeight: '100vh', background: 'white' },
 
-  // Main Sidebar
   sidebar: {
     width: '260px',
     background: '#fafbfc',
@@ -780,7 +1157,6 @@ const styles: { [key: string]: CSSProperties } = {
   sidebarDecoration: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '200px', overflow: 'hidden', pointerEvents: 'none' },
   sidebarCircle: { position: 'absolute', borderRadius: '50%', opacity: 0.5, animation: 'float 12s infinite ease-in-out' },
 
-  // Settings Menu Panel
   settingsMenu: {
     width: '280px',
     marginLeft: '300px',
@@ -811,12 +1187,10 @@ const styles: { [key: string]: CSSProperties } = {
   },
   settingsMenuItemActive: { background: '#4371f0', color: 'white' },
 
-  // Content Area
-  contentArea: { flex: 1, marginLeft: '630px', padding: '40px 60px', zIndex: 10 },
+  contentArea: { flex: 1, marginLeft: '630px', padding: '40px 60px', zIndex: 10, overflowY: 'auto' as const },
   content: { maxWidth: '800px' },
   contentTitle: { fontSize: '32px', fontWeight: '700', color: '#111', marginBottom: '35px' },
 
-  // Success/Error Messages
   successMessage: {
     background: '#d4edda',
     color: '#155724',
@@ -824,7 +1198,12 @@ const styles: { [key: string]: CSSProperties } = {
     borderRadius: '12px',
     marginBottom: '20px',
     fontSize: '15px',
-    border: '1px solid #c3e6cb'
+    border: '1px solid #c3e6cb',
+    position: 'fixed' as const,
+    top: '20px',
+    right: '20px',
+    zIndex: 1000,
+    maxWidth: '400px'
   },
   errorMessage: {
     background: '#f8d7da',
@@ -833,10 +1212,14 @@ const styles: { [key: string]: CSSProperties } = {
     borderRadius: '12px',
     marginBottom: '20px',
     fontSize: '15px',
-    border: '1px solid #f5c6cb'
+    border: '1px solid #f5c6cb',
+    position: 'fixed' as const,
+    top: '20px',
+    right: '20px',
+    zIndex: 1000,
+    maxWidth: '400px'
   },
 
-  // Profile Photo Section
   profilePhotoSection: {
     display: 'flex',
     alignItems: 'center',
@@ -879,7 +1262,6 @@ const styles: { [key: string]: CSSProperties } = {
     transition: 'all 0.2s',
   },
 
-  // Form
   form: {},
   formGroup: { marginBottom: '24px' },
   label: { display: 'block', fontSize: '15px', fontWeight: '600', color: '#111', marginBottom: '8px' },
@@ -892,7 +1274,7 @@ const styles: { [key: string]: CSSProperties } = {
     color: '#333',
     outline: 'none',
     transition: 'border 0.2s',
-    boxSizing: 'border-box',
+    boxSizing: 'border-box' as const,
     background: '#f5f7fa',
   },
   textarea: {
@@ -903,10 +1285,10 @@ const styles: { [key: string]: CSSProperties } = {
     fontSize: '15px',
     color: '#333',
     outline: 'none',
-    resize: 'vertical',
+    resize: 'vertical' as const,
     fontFamily: 'inherit',
     transition: 'border 0.2s',
-    boxSizing: 'border-box',
+    boxSizing: 'border-box' as const,
     background: '#f5f7fa',
   },
   select: {
@@ -918,10 +1300,10 @@ const styles: { [key: string]: CSSProperties } = {
     color: '#333',
     outline: 'none',
     transition: 'border 0.2s',
-    boxSizing: 'border-box',
+    boxSizing: 'border-box' as const,
     background: '#f5f7fa',
     cursor: 'pointer',
-    appearance: 'none',
+    appearance: 'none' as const,
     backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%23666' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E")`,
     backgroundRepeat: 'no-repeat',
     backgroundPosition: 'right 18px center',
@@ -940,7 +1322,6 @@ const styles: { [key: string]: CSSProperties } = {
     marginTop: '10px',
   },
 
-  // Notifications
   notificationList: { display: 'flex', flexDirection: 'column', gap: '12px' },
   notificationItem: {
     display: 'flex',
@@ -953,11 +1334,58 @@ const styles: { [key: string]: CSSProperties } = {
     transition: 'all 0.2s',
   },
   notificationText: { fontSize: '15px', fontWeight: '500', color: '#333' },
+  toggle: { display: 'flex', alignItems: 'center' },
 
-  // Placeholder
   placeholderText: { fontSize: '15px', color: '#999', marginTop: '20px' },
 
-  // Loading
+  userList: { display: 'flex', flexDirection: 'column', gap: '12px' },
+  userItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px 16px',
+    background: '#f5f7fa',
+    borderRadius: '12px'
+  },
+  removeBtn: {
+    padding: '6px 16px',
+    background: '#e74c3c',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '12px',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  unblockBtn: {
+    padding: '6px 16px',
+    background: '#27ae60',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '12px',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+
+  archiveSection: {
+    padding: '20px',
+    background: '#f5f7fa',
+    borderRadius: '12px',
+    marginBottom: '20px'
+  },
+  downloadBtn: {
+    padding: '12px 20px',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+
+  languageSection: { padding: '20px', background: '#f5f7fa', borderRadius: '12px' },
+
   loadingContainer: {
     display: 'flex',
     flexDirection: 'column',
@@ -983,7 +1411,7 @@ const styles: { [key: string]: CSSProperties } = {
     gap: '20px',
     padding: '20px'
   },
-  errorText: { fontSize: '18px', color: '#e74c3c', textAlign: 'center' },
+  errorText: { fontSize: '18px', color: '#e74c3c', textAlign: 'center' as const },
   btnPrimary: {
     padding: '12px 28px',
     background: '#e357a3',

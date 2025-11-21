@@ -8,7 +8,7 @@ export async function POST(request, { params }) {
   try {
     await dbConnect();
     const { workId } = await params;
-    const { deliverableIndex, url, mediaUrl, caption } = await request.json();
+    const body = await request.json();
 
     const token = request.cookies.get('token')?.value;
     
@@ -29,6 +29,15 @@ export async function POST(request, { params }) {
       );
     }
 
+    const { deliverableIndex, url, caption } = body;
+
+    if (deliverableIndex === undefined || !url) {
+      return NextResponse.json(
+        { success: false, message: "deliverableIndex and url are required" },
+        { status: 400 }
+      );
+    }
+
     const work = await Work.findById(workId);
 
     if (!work) {
@@ -38,7 +47,7 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Only KOL can submit
+    // Verify KOL owns this work
     if (work.kol.toString() !== decoded.userId) {
       return NextResponse.json(
         { success: false, message: "Not authorized" },
@@ -46,70 +55,125 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Check deliverable exists
-    if (deliverableIndex < 0 || deliverableIndex >= work.deliverables.length) {
-      return NextResponse.json(
-        { success: false, message: "Invalid deliverable index" },
-        { status: 400 }
-      );
-    }
-
+    // Get deliverable
     const deliverable = work.deliverables[deliverableIndex];
-
-    // Check if already met requirement
-    if (deliverable.submitted >= deliverable.required) {
+    if (!deliverable) {
       return NextResponse.json(
-        { success: false, message: "Already submitted all required deliverables" },
-        { status: 400 }
+        { success: false, message: "Deliverable not found" },
+        { status: 404 }
       );
     }
 
     // Add submission
-    deliverable.submissions.push({
-      url: url || '',
-      mediaUrl: mediaUrl || '',
+    const submission = {
+      url,
       caption: caption || '',
       submittedAt: new Date(),
-      status: 'pending'
-    });
+      status: 'pending',
+      feedback: ''
+    };
 
-    deliverable.submitted += 1;
+    if (!deliverable.submissions) {
+      deliverable.submissions = [];
+    }
 
-    // Recalculate progress
-    let totalRequired = 0;
-    let totalSubmitted = 0;
-    
-    work.deliverables.forEach(d => {
-      totalRequired += d.required;
-      totalSubmitted += Math.min(d.submitted, d.required);
-    });
-    
-    work.progress = totalRequired > 0 ? Math.round((totalSubmitted / totalRequired) * 100) : 0;
+    deliverable.submissions.push(submission);
+    deliverable.submitted = (deliverable.submissions.filter(s => 
+      ['pending', 'approved'].includes(s.status)
+    ).length);
 
-    // Update status if all submitted
-    if (work.progress >= 100) {
+    // Update work status to "in_review" if it was "active"
+    if (work.status === 'active') {
       work.status = 'in_review';
-    } else if (work.status === 'pending') {
-      work.status = 'active';
     }
 
     await work.save();
 
-    console.log(`✅ Deliverable submitted for work ${workId}`);
+    console.log(`✅ KOL ${decoded.userId} submitted deliverable ${deliverableIndex} for work ${workId}`);
 
     return NextResponse.json({
       success: true,
       message: "Deliverable submitted successfully",
-      work: {
-        _id: work._id,
-        progress: work.progress,
-        status: work.status,
-        deliverables: work.deliverables
+      deliverable: {
+        type: deliverable.type,
+        title: deliverable.title,
+        submitted: deliverable.submitted,
+        required: deliverable.required,
+        submissions: deliverable.submissions
       }
-    }, { status: 200 });
+    }, { status: 201 });
 
   } catch (err) {
     console.error("❌ API ERROR POST /work/[workId]/submit:", err);
+    return NextResponse.json(
+      { success: false, message: "Server error", error: err.message },
+      { status: 500 }
+    );
+  }
+}
+
+// GET - Get submissions for a deliverable
+export async function GET(request, { params }) {
+  try {
+    await dbConnect();
+    const { workId } = await params;
+    const { searchParams } = new URL(request.url);
+    const deliverableIndex = searchParams.get('deliverableIndex');
+
+    const token = request.cookies.get('token')?.value;
+    
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: "Not authenticated" },
+        { status: 401 }
+      );
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (jwtError) {
+      return NextResponse.json(
+        { success: false, message: "Invalid token" },
+        { status: 401 }
+      );
+    }
+
+    const work = await Work.findById(workId)
+      .populate('kol', 'username fullname')
+      .populate('brand', 'username fullname');
+
+    if (!work) {
+      return NextResponse.json(
+        { success: false, message: "Work not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check authorization (KOL or Brand)
+    if (work.kol._id.toString() !== decoded.userId && 
+        work.brand._id.toString() !== decoded.userId) {
+      return NextResponse.json(
+        { success: false, message: "Not authorized" },
+        { status: 403 }
+      );
+    }
+
+    const deliverable = work.deliverables[deliverableIndex];
+    if (!deliverable) {
+      return NextResponse.json(
+        { success: false, message: "Deliverable not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      submissions: deliverable.submissions || []
+    }, { status: 200 });
+
+  } catch (err) {
+    console.error("❌ API ERROR GET /work/[workId]/submit:", err);
     return NextResponse.json(
       { success: false, message: "Server error", error: err.message },
       { status: 500 }

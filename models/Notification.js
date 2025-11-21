@@ -1,11 +1,10 @@
 import mongoose from 'mongoose';
 
-const NotificationSchema = new mongoose.Schema({
+const notificationSchema = new mongoose.Schema({
   recipient: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    required: true
   },
   sender: {
     type: mongoose.Schema.Types.ObjectId,
@@ -29,7 +28,7 @@ const NotificationSchema = new mongoose.Schema({
   },
   message: {
     type: String,
-    required: true
+    default: ''
   },
   isRead: {
     type: Boolean,
@@ -40,7 +39,9 @@ const NotificationSchema = new mongoose.Schema({
 });
 
 // Index untuk query cepat
-NotificationSchema.index({ recipient: 1, createdAt: -1 });
-NotificationSchema.index({ recipient: 1, isRead: 1 });
+notificationSchema.index({ recipient: 1, createdAt: -1 });
+notificationSchema.index({ recipient: 1, isRead: 1 });
 
-export default mongoose.models.Notification || mongoose.model('Notification', NotificationSchema);
+const Notification = mongoose.models.Notification || mongoose.model('Notification', notificationSchema);
+
+export default Notification;

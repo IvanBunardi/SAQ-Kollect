@@ -5,19 +5,29 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-type NotificationType = 'like' | 'comment' | 'follow' | 'mention';
+type NotificationType = 'like' | 'comment' | 'follow' | 'mention' | 'campaign_invite' | 'campaign_accepted' | 'campaign_rejected';
 
 interface Notification {
   id: string;
+  _id?: string;
   type: NotificationType;
   sender: {
     id: string;
+    _id?: string;
     username: string;
     fullname: string;
     profilePhoto?: string;
     profilePicture?: string;
   };
   message: string;
+  data?: {
+    campaignId?: string;
+    campaignName?: string;
+    budget?: number;
+    deadline?: string;
+    workId?: string;
+    postId?: string;
+  };
   post?: {
     id: string;
     caption: string;
@@ -30,9 +40,10 @@ interface Notification {
 export default function NotificationsPage() {
   const router = useRouter();
   const [activeNav, setActiveNav] = useState('notifications');
-  const [activeTab, setActiveTab] = useState<'all' | 'likes' | 'comments' | 'mentions' | 'follows'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'likes' | 'comments' | 'campaigns' | 'follows'>('all');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [respondingTo, setRespondingTo] = useState<string | null>(null);
 
   useEffect(() => {
     fetchNotifications();
@@ -46,7 +57,7 @@ export default function NotificationsPage() {
 
       if (res.ok) {
         const data = await res.json();
-        console.log('✅ Notifications loaded:', data.notifications.length);
+        console.log('✅ Notifications loaded:', data.notifications?.length || 0);
         setNotifications(data.notifications || []);
       } else {
         console.error('Failed to load notifications');
@@ -76,11 +87,55 @@ export default function NotificationsPage() {
     }
   };
 
+  // ✅ Handle Campaign Response (Accept/Reject)
+  const handleCampaignResponse = async (campaignId: string, action: 'accept' | 'reject') => {
+    if (!campaignId) {
+      alert('Campaign ID not found');
+      return;
+    }
+
+    setRespondingTo(campaignId);
+
+    try {
+      const res = await fetch(`/api/campaign/${campaignId}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert(data.message);
+        
+        // Update notification as read
+        setNotifications(prev => prev.map(n => 
+          n.data?.campaignId === campaignId ? { ...n, isRead: true } : n
+        ));
+        
+        // Refresh notifications
+        fetchNotifications();
+        
+        if (action === 'accept') {
+          router.push('/work');
+        }
+      } else {
+        alert(data.message || 'Failed to respond');
+      }
+    } catch (err) {
+      console.error('❌ Error responding to campaign:', err);
+      alert('Failed to respond to campaign');
+    } finally {
+      setRespondingTo(null);
+    }
+  };
+
   const filteredNotifications = notifications.filter(notif => {
     if (activeTab === 'all') return true;
     if (activeTab === 'likes') return notif.type === 'like';
     if (activeTab === 'comments') return notif.type === 'comment';
-    if (activeTab === 'mentions') return notif.type === 'mention';
+    if (activeTab === 'campaigns') return ['campaign_invite', 'campaign_accepted', 'campaign_rejected'].includes(notif.type);
     if (activeTab === 'follows') return notif.type === 'follow';
     return true;
   });
@@ -96,53 +151,35 @@ export default function NotificationsPage() {
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (seconds < 60) return `${seconds} seconds ago`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`;
+    if (seconds < 60) return `${seconds}s ago`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
     return date.toLocaleDateString();
   };
 
   const getNotificationIcon = (type: NotificationType) => {
-    switch (type) {
-      case 'like':
-        return (
-          <div style={{...styles.notifIcon, background: '#e357a3'}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-            </svg>
-          </div>
-        );
-      case 'comment':
-        return (
-          <div style={{...styles.notifIcon, background: '#4371f0'}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-          </div>
-        );
-      case 'follow':
-        return (
-          <div style={{...styles.notifIcon, background: '#52c41a'}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-          </div>
-        );
-      case 'mention':
-        return (
-          <div style={{...styles.notifIcon, background: '#faad14'}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
-              <path d="M12 18V6"/>
-            </svg>
-          </div>
-        );
-    }
+    const iconStyles = {
+      like: { bg: '#e357a3', icon: '❤️' },
+      comment: { bg: '#4371f0', icon: '💬' },
+      follow: { bg: '#52c41a', icon: '👤' },
+      mention: { bg: '#faad14', icon: '@' },
+      campaign_invite: { bg: '#9c27b0', icon: '💼' },
+      campaign_accepted: { bg: '#4caf50', icon: '✅' },
+      campaign_rejected: { bg: '#f44336', icon: '❌' },
+    };
+
+    const style = iconStyles[type] || iconStyles.like;
+    
+    return (
+      <div style={{
+        position: 'absolute', bottom: '-4px', right: '-4px', width: '28px', height: '28px',
+        borderRadius: '50%', background: style.bg, display: 'flex', alignItems: 'center',
+        justifyContent: 'center', border: '2px solid white', fontSize: '14px'
+      }}>
+        {style.icon}
+      </div>
+    );
   };
 
   return (
@@ -160,16 +197,14 @@ export default function NotificationsPage() {
       <div style={styles.circles}>
         <div style={{...styles.circle, ...styles.blue, ...styles.huge, top: '-180px', left: '-180px'}}></div>
         <div style={{...styles.circle, ...styles.lightpink, ...styles.extrabig, top: '-120px', left: '120px'}}></div>
-        <div style={{...styles.circle, ...styles.lightblue, ...styles.big, top: '50px', left: '150px'}}></div>
         <div style={{...styles.circle, ...styles.blue, ...styles.huge, bottom: '-150px', left: '-120px'}}></div>
         <div style={{...styles.circle, ...styles.pink, ...styles.extrabig, bottom: '-80px', left: '180px'}}></div>
         <div style={{...styles.circle, ...styles.blue, ...styles.huge, top: '-160px', right: '-160px'}}></div>
-        <div style={{...styles.circle, ...styles.lightpink, ...styles.extrabig, top: '-100px', right: '140px'}}></div>
-        <div style={{...styles.circle, ...styles.blue, ...styles.huge, bottom: '-140px', right: '-120px'}}></div>
         <div style={{...styles.circle, ...styles.pink, ...styles.extrabig, bottom: '-60px', right: '160px'}}></div>
       </div>
 
       <div style={styles.container}>
+        {/* Sidebar */}
         <div style={styles.sidebar}>
           <div style={styles.logo}>
             <Image src="/assets/logo-full.png" alt="Kollect Logo" width={200} height={106} style={{objectFit: 'contain'}} />
@@ -203,7 +238,7 @@ export default function NotificationsPage() {
               </svg>
               <span>Messages</span>
             </Link>
-            <Link href="/notifications" style={{...styles.navItem, ...(activeNav === 'notifications' && styles.navItemActive)}}>
+            <Link href="/notifications" style={{...styles.navItem, ...styles.navItemActive}}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -242,10 +277,11 @@ export default function NotificationsPage() {
           
           <div style={styles.sidebarDecoration}>
             <div style={{...styles.sidebarCircle, width: '100px', height: '100px', bottom: '20px', left: '-20px', background: '#4371f0'}}></div>
-            <div style={{...styles.sidebarCircle, width: '80px', height: '80px', bottom: '80px', left: '30px', background: '#e357a3', animationDelay: '2s'}}></div>
+            <div style={{...styles.sidebarCircle, width: '80px', height: '80px', bottom: '80px', left: '30px', background: '#e357a3'}}></div>
           </div>
         </div>
 
+        {/* Main Content */}
         <div style={styles.mainContent}>
           <div style={styles.header}>
             <h1 style={styles.pageTitle}>Notifications</h1>
@@ -254,39 +290,20 @@ export default function NotificationsPage() {
             </button>
           </div>
 
+          {/* Tabs */}
           <div style={styles.tabs}>
-            <button 
-              style={{...styles.tab, ...(activeTab === 'all' && styles.tabActive)}}
-              onClick={() => setActiveTab('all')}
-            >
-              All
-            </button>
-            <button 
-              style={{...styles.tab, ...(activeTab === 'likes' && styles.tabActive)}}
-              onClick={() => setActiveTab('likes')}
-            >
-              Likes
-            </button>
-            <button 
-              style={{...styles.tab, ...(activeTab === 'comments' && styles.tabActive)}}
-              onClick={() => setActiveTab('comments')}
-            >
-              Comments
-            </button>
-            <button 
-              style={{...styles.tab, ...(activeTab === 'mentions' && styles.tabActive)}}
-              onClick={() => setActiveTab('mentions')}
-            >
-              Mentions
-            </button>
-            <button 
-              style={{...styles.tab, ...(activeTab === 'follows' && styles.tabActive)}}
-              onClick={() => setActiveTab('follows')}
-            >
-              Follows
-            </button>
+            {['all', 'campaigns', 'likes', 'comments', 'follows'].map(tab => (
+              <button 
+                key={tab}
+                style={{...styles.tab, ...(activeTab === tab && styles.tabActive)}}
+                onClick={() => setActiveTab(tab as any)}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
           </div>
 
+          {/* Notifications List */}
           {loading ? (
             <div style={{textAlign: 'center', padding: '60px', fontSize: '16px', color: '#666'}}>
               Loading notifications...
@@ -304,21 +321,17 @@ export default function NotificationsPage() {
             <div style={styles.notificationsList}>
               {filteredNotifications.map((notif) => (
                 <div 
-                  key={notif.id} 
+                  key={notif.id || notif._id} 
                   style={{
                     ...styles.notificationItem,
-                    ...(notif.isRead ? {} : styles.notificationUnread)
-                  }}
-                  onClick={() => {
-                    if (notif.post) {
-                      router.push(`/post/${notif.post.id}`);
-                    } else if (notif.type === 'follow') {
-                      router.push(`/profile/${notif.sender.username}`);
-                    }
+                    ...(!notif.isRead ? styles.notificationUnread : {})
                   }}
                 >
                   <div style={styles.notificationContent}>
-                    <div style={styles.notificationAvatar}>
+                    <div 
+                      style={styles.notificationAvatar}
+                      onClick={() => router.push(`/profile/${notif.sender.username}`)}
+                    >
                       <img 
                         src={getAvatarUrl(
                           notif.sender.profilePhoto,
@@ -326,21 +339,70 @@ export default function NotificationsPage() {
                           notif.sender.fullname || notif.sender.username
                         )}
                         alt={notif.sender.fullname} 
-                        style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}}
-                        onError={(e: any) => {
-                          e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(notif.sender.fullname || 'User')}&background=random&size=50&bold=true`;
-                        }}
+                        style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', cursor: 'pointer'}}
                       />
                       {getNotificationIcon(notif.type)}
                     </div>
 
                     <div style={styles.notificationText}>
                       <p style={styles.notificationMessage}>
-                        <strong>{notif.sender.fullname || notif.sender.username}</strong> {notif.message}
+                        <strong 
+                          style={{cursor: 'pointer'}}
+                          onClick={() => router.push(`/profile/${notif.sender.username}`)}
+                        >
+                          {notif.sender.fullname || notif.sender.username}
+                        </strong>
+                        {' '}{notif.message}
                       </p>
-                      {notif.post && (
-                        <p style={styles.notificationPost}>"{notif.post.caption?.substring(0, 50) || 'Post'}"</p>
+                      
+                      {/* ✅ CAMPAIGN INVITE DETAILS */}
+                      {notif.type === 'campaign_invite' && notif.data && (
+                        <div style={styles.campaignDetails}>
+                          <p style={styles.campaignName}>📋 {notif.data.campaignName}</p>
+                          {notif.data.budget && (
+                            <p style={styles.campaignBudget}>💰 Budget: ${notif.data.budget}</p>
+                          )}
+                          {notif.data.deadline && (
+                            <p style={styles.campaignDeadline}>
+                              📅 Deadline: {new Date(notif.data.deadline).toLocaleDateString()}
+                            </p>
+                          )}
+                          
+                          {/* ✅ ACCEPT / REJECT BUTTONS */}
+                          <div style={styles.campaignActions}>
+                            <button
+                              style={{
+                                ...styles.acceptBtn,
+                                opacity: respondingTo === notif.data.campaignId ? 0.6 : 1
+                              }}
+                              onClick={() => handleCampaignResponse(notif.data!.campaignId!, 'accept')}
+                              disabled={respondingTo === notif.data.campaignId}
+                            >
+                              {respondingTo === notif.data.campaignId ? 'Processing...' : '✓ Accept'}
+                            </button>
+                            <button
+                              style={{
+                                ...styles.declineBtn,
+                                opacity: respondingTo === notif.data.campaignId ? 0.6 : 1
+                              }}
+                              onClick={() => handleCampaignResponse(notif.data!.campaignId!, 'reject')}
+                              disabled={respondingTo === notif.data.campaignId}
+                            >
+                              ✕ Decline
+                            </button>
+                          </div>
+                        </div>
                       )}
+
+                      {notif.post && (
+                        <p 
+                          style={styles.notificationPost}
+                          onClick={() => router.push(`/post/${notif.post?.id}`)}
+                        >
+                          "{notif.post.caption?.substring(0, 50) || 'View post'}..."
+                        </p>
+                      )}
+                      
                       <p style={styles.notificationTime}>{formatTimeAgo(notif.createdAt)}</p>
                     </div>
                   </div>
@@ -370,32 +432,16 @@ const styles: { [key: string]: React.CSSProperties } = {
   container: { display: 'flex', minHeight: '100vh', background: 'white' },
 
   sidebar: {
-    width: '260px',
-    background: '#fafbfc',
-    position: 'fixed',
-    height: '100vh',
-    left: 0,
-    top: 0,
-    zIndex: 100,
-    padding: '30px 20px',
-    display: 'flex',
-    flexDirection: 'column',
-    borderRight: '1px solid #e8e8e8',
+    width: '260px', background: '#fafbfc', position: 'fixed', height: '100vh',
+    left: 0, top: 0, zIndex: 100, padding: '30px 20px', display: 'flex',
+    flexDirection: 'column', borderRight: '1px solid #e8e8e8',
   },
   logo: { marginBottom: '50px', paddingLeft: '10px' },
   navMenu: { display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 },
   navItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '14px',
-    padding: '14px 18px',
-    borderRadius: '12px',
-    color: '#666',
-    textDecoration: 'none',
-    fontSize: '15px',
-    fontWeight: '500',
-    background: '#e8eaed',
-    transition: 'all 0.2s ease',
+    display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px',
+    borderRadius: '12px', color: '#666', textDecoration: 'none', fontSize: '15px',
+    fontWeight: '500', background: '#e8eaed', transition: 'all 0.2s ease',
   },
   navItemActive: { background: '#4371f0', color: 'white' },
   sidebarDecoration: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '200px', overflow: 'hidden', pointerEvents: 'none' },
@@ -406,79 +452,58 @@ const styles: { [key: string]: React.CSSProperties } = {
   header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '30px' },
   pageTitle: { fontSize: '38px', fontWeight: '700', color: '#111', margin: 0 },
   markAllRead: {
-    padding: '10px 24px',
-    background: 'white',
-    border: '1.5px solid #e0e0e0',
-    borderRadius: '10px',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#666',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
+    padding: '10px 24px', background: 'white', border: '1.5px solid #e0e0e0',
+    borderRadius: '10px', fontSize: '14px', fontWeight: '600', color: '#666',
+    cursor: 'pointer', transition: 'all 0.2s',
   },
 
-  tabs: { display: 'flex', gap: '12px', marginBottom: '30px', borderBottom: '2px solid #f0f0f0', paddingBottom: '0' },
+  tabs: { display: 'flex', gap: '8px', marginBottom: '30px', borderBottom: '2px solid #f0f0f0', paddingBottom: '0' },
   tab: {
-    padding: '12px 24px',
-    background: 'transparent',
-    border: 'none',
-    borderBottom: '3px solid transparent',
-    fontSize: '15px',
-    fontWeight: '600',
-    color: '#999',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    marginBottom: '-2px',
+    padding: '12px 20px', background: 'transparent', border: 'none',
+    borderBottom: '3px solid transparent', fontSize: '15px', fontWeight: '600',
+    color: '#999', cursor: 'pointer', transition: 'all 0.2s', marginBottom: '-2px',
   },
   tabActive: { color: '#4371f0', borderBottom: '3px solid #4371f0' },
 
   notificationsList: { display: 'flex', flexDirection: 'column', gap: '0' },
   notificationItem: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '20px 24px',
-    borderBottom: '1px solid #f5f5f5',
-    transition: 'background 0.2s',
-    cursor: 'pointer',
+    display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+    padding: '20px 24px', borderBottom: '1px solid #f5f5f5', transition: 'background 0.2s',
   },
   notificationUnread: { background: '#f9fbff' },
   
   notificationContent: { display: 'flex', alignItems: 'flex-start', gap: '16px', flex: 1 },
   notificationAvatar: { position: 'relative', width: '50px', height: '50px', flexShrink: 0 },
-  notifIcon: {
-    position: 'absolute',
-    bottom: '-4px',
-    right: '-4px',
-    width: '28px',
-    height: '28px',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: '2px solid white',
-  },
   
   notificationText: { flex: 1 },
   notificationMessage: { margin: 0, fontSize: '15px', color: '#333', marginBottom: '4px', lineHeight: '1.5' },
-  notificationPost: { margin: 0, fontSize: '14px', color: '#666', marginBottom: '6px', fontStyle: 'italic' },
+  notificationPost: { 
+    margin: '8px 0', fontSize: '14px', color: '#4371f0', cursor: 'pointer',
+    padding: '8px 12px', background: '#f0f5ff', borderRadius: '8px', display: 'inline-block'
+  },
   notificationTime: { margin: 0, fontSize: '13px', color: '#999' },
   
-  unreadDot: {
-    width: '10px',
-    height: '10px',
-    borderRadius: '50%',
-    background: '#4371f0',
-    flexShrink: 0,
+  // ✅ Campaign Invite Styles
+  campaignDetails: {
+    margin: '12px 0', padding: '16px', background: '#f8f4ff',
+    borderRadius: '12px', border: '1px solid #e8e0f0',
+  },
+  campaignName: { margin: '0 0 8px', fontSize: '16px', fontWeight: '600', color: '#333' },
+  campaignBudget: { margin: '0 0 4px', fontSize: '14px', color: '#666' },
+  campaignDeadline: { margin: '0 0 12px', fontSize: '14px', color: '#666' },
+  campaignActions: { display: 'flex', gap: '12px', marginTop: '12px' },
+  acceptBtn: {
+    padding: '10px 24px', background: '#4CAF50', color: 'white', border: 'none',
+    borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s',
+  },
+  declineBtn: {
+    padding: '10px 24px', background: '#f44336', color: 'white', border: 'none',
+    borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s',
   },
 
-  emptyState: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '80px 20px',
-  },
+  unreadDot: { width: '10px', height: '10px', borderRadius: '50%', background: '#4371f0', flexShrink: 0, marginTop: '8px' },
+
+  emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 20px' },
   emptyText: { fontSize: '20px', fontWeight: '600', color: '#666', margin: '20px 0 8px' },
   emptySubtext: { fontSize: '15px', color: '#999', margin: 0 },
 };

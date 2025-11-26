@@ -26,7 +26,6 @@ export default function CreatePage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Check file size
       const fileSizeMB = file.size / (1024 * 1024);
       if (fileSizeMB > 100) {
         setError(`File too large: ${fileSizeMB.toFixed(2)}MB. Max 100MB.`);
@@ -56,6 +55,7 @@ export default function CreatePage() {
     setError('');
   };
 
+  // ✅ SUBMIT POST (Photo/Video)
   const handleSubmit = async () => {
     if (!uploadedFile || !selectedType) {
       setError('Please upload a file');
@@ -72,33 +72,21 @@ export default function CreatePage() {
       formDataToSend.append('caption', formData.caption);
       formDataToSend.append('location', formData.location);
       
-      // Parse tagged people (comma separated)
       if (formData.taggedPeople) {
         const tags = formData.taggedPeople.split(',').map(tag => tag.trim());
         formDataToSend.append('taggedPeople', JSON.stringify(tags));
       }
 
-      console.log('Sending request to /api/post/create...');
-
       const res = await fetch('/api/post/create', {
         method: 'POST',
         body: formDataToSend,
-        credentials: 'include', // Important untuk cookies
+        credentials: 'include',
       });
 
-      console.log('Response status:', res.status);
-      console.log('Response headers:', res.headers);
-
-      // Check content type
       const contentType = res.headers.get('content-type');
-      console.log('Content-Type:', contentType);
 
       if (!contentType || !contentType.includes('application/json')) {
-        // Server returned HTML instead of JSON
-        const text = await res.text();
-        console.error('Server returned HTML:', text.substring(0, 200));
-        
-        setError('Server error: Expected JSON but got HTML. Check if API route exists.');
+        setError('Server error: Expected JSON but got HTML.');
         setLoading(false);
         return;
       }
@@ -116,6 +104,65 @@ export default function CreatePage() {
     } catch (err: any) {
       console.error('Create post error:', err);
       setError(`Network error: ${err.message}`);
+      setLoading(false);
+    }
+  };
+
+  // ✅ SUBMIT STORY (NEW!)
+  const handleSubmitStory = async () => {
+    if (!uploadedFile) {
+      setError('Please upload an image or video');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      // Upload to Cloudinary first
+      const cloudinaryFormData = new FormData();
+      cloudinaryFormData.append('file', uploadedFile);
+      cloudinaryFormData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'kollect_unsigned');
+
+      const cloudinaryRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/auto/upload`,
+        {
+          method: 'POST',
+          body: cloudinaryFormData
+        }
+      );
+
+      const cloudinaryData = await cloudinaryRes.json();
+
+      if (!cloudinaryData.secure_url) {
+        throw new Error('Failed to upload media');
+      }
+
+      // Create story
+      const res = await fetch('/api/story', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          mediaUrl: cloudinaryData.secure_url,
+          mediaType: uploadedFile.type.startsWith('video/') ? 'video' : 'image',
+          caption: formData.caption
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert('Story created! It will be visible for 24 hours.');
+        router.push('/feeds');
+      } else {
+        setError(data.message || 'Failed to create story');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to create story');
+    } finally {
       setLoading(false);
     }
   };
@@ -217,7 +264,6 @@ export default function CreatePage() {
             </Link>
           </nav>
           
-          {/* Decorative circles */}
           <div style={styles.sidebarDecoration}>
             <div style={{...styles.sidebarCircle, width: '100px', height: '100px', bottom: '20px', left: '-20px', background: '#4371f0'}}></div>
             <div style={{...styles.sidebarCircle, width: '80px', height: '80px', bottom: '80px', left: '30px', background: '#e357a3', animationDelay: '2s'}}></div>
@@ -227,7 +273,6 @@ export default function CreatePage() {
         {/* Main Content */}
         <div style={styles.mainContent}>
           {!selectedType ? (
-            // Initial Selection View
             <>
               <h1 style={styles.pageTitle}>Create</h1>
               <h2 style={styles.subtitle}>What do you want to share today?</h2>
@@ -256,21 +301,21 @@ export default function CreatePage() {
                   <h3 style={styles.optionTitle}>Video</h3>
                 </div>
 
-                {/* Story Option */}
+                {/* ✅ Story Option - Now with gradient! */}
                 <div style={styles.optionCard} onClick={() => handleTypeSelect('story')}>
-                  <div style={{...styles.optionIcon, background: '#d4d4d4'}}>
+                  <div style={{...styles.optionIcon, background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)'}}>
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
                       <circle cx="12" cy="12" r="10"/>
-                      <line x1="12" y1="8" x2="12" y2="12"/>
-                      <line x1="12" y1="16" x2="12.01" y2="16"/>
+                      <circle cx="12" cy="12" r="6"/>
+                      <circle cx="12" cy="12" r="2"/>
                     </svg>
                   </div>
                   <h3 style={styles.optionTitle}>Story</h3>
+                  <p style={{fontSize: '13px', color: '#666', margin: '8px 0 0'}}>Visible for 24 hours</p>
                 </div>
               </div>
             </>
           ) : (
-            // Create New Post View
             <div style={styles.createContainer}>
               <div style={styles.createHeader}>
                 <button style={styles.backButton} onClick={handleBack}>
@@ -279,7 +324,12 @@ export default function CreatePage() {
                     <polyline points="12 19 5 12 12 5"/>
                   </svg>
                 </button>
-                <h1 style={styles.createTitle}>Create New Post</h1>
+                <h1 style={styles.createTitle}>
+                  {selectedType === 'story' ? 'Create Story' : 'Create New Post'}
+                </h1>
+                {selectedType === 'story' && (
+                  <span style={styles.storyBadge}>24h</span>
+                )}
               </div>
 
               {error && (
@@ -292,9 +342,18 @@ export default function CreatePage() {
                 {/* Preview Section */}
                 <div style={styles.previewSection}>
                   <h2 style={styles.sectionTitle}>Preview</h2>
-                  <div style={styles.previewBox}>
+                  <div style={{
+                    ...styles.previewBox,
+                    background: selectedType === 'story' 
+                      ? 'linear-gradient(135deg, #1a1a2e, #16213e)' 
+                      : '#e8f4f8'
+                  }}>
                     {uploadedImage ? (
-                      <img src={uploadedImage} alt="Preview" style={styles.previewImage} />
+                      uploadedFile?.type.startsWith('video/') ? (
+                        <video src={uploadedImage} style={styles.previewImage} controls />
+                      ) : (
+                        <img src={uploadedImage} alt="Preview" style={styles.previewImage} />
+                      )
                     ) : (
                       <label style={styles.uploadLabel}>
                         <input 
@@ -304,14 +363,18 @@ export default function CreatePage() {
                           onChange={handleImageUpload}
                         />
                         <div style={styles.uploadIcon}>
-                          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2">
+                          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={selectedType === 'story' ? '#fff' : '#666'} strokeWidth="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                             <polyline points="17 8 12 3 7 8"/>
                             <line x1="12" y1="3" x2="12" y2="15"/>
                           </svg>
                         </div>
-                        <p style={styles.uploadText}>Upload {selectedType}</p>
-                        <p style={styles.uploadSubtext}>Click or drag and drop</p>
+                        <p style={{...styles.uploadText, color: selectedType === 'story' ? '#fff' : '#333'}}>
+                          Upload {selectedType}
+                        </p>
+                        <p style={{...styles.uploadSubtext, color: selectedType === 'story' ? '#aaa' : '#666'}}>
+                          Click or drag and drop
+                        </p>
                       </label>
                     )}
                   </div>
@@ -319,72 +382,93 @@ export default function CreatePage() {
 
                 {/* Form Section */}
                 <div style={styles.formSection}>
-                  <h2 style={styles.sectionTitle}>Create New Post</h2>
+                  <h2 style={styles.sectionTitle}>
+                    {selectedType === 'story' ? 'Story Details' : 'Post Details'}
+                  </h2>
                   
                   {/* Caption */}
                   <div style={styles.formGroup}>
-                    <label style={styles.formLabel}>Caption</label>
+                    <label style={styles.formLabel}>
+                      {selectedType === 'story' ? 'Caption (optional)' : 'Caption'}
+                    </label>
                     <textarea 
                       name="caption"
                       value={formData.caption}
                       onChange={handleInputChange}
                       style={styles.textarea}
-                      placeholder="Write Your Caption"
-                      rows={4}
+                      placeholder={selectedType === 'story' ? 'Add a caption...' : 'Write Your Caption'}
+                      rows={selectedType === 'story' ? 2 : 4}
+                      maxLength={selectedType === 'story' ? 100 : 2000}
                     />
+                    {selectedType === 'story' && (
+                      <span style={{fontSize: '12px', color: '#999'}}>
+                        {formData.caption.length}/100
+                      </span>
+                    )}
                   </div>
 
-                  {/* Location */}
-                  <div style={styles.formGroup}>
-                    <label style={styles.formLabel}>Location</label>
-                    <div style={styles.inputWithIcon}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                        <circle cx="12" cy="10" r="3"/>
-                      </svg>
-                      <input 
-                        type="text"
-                        name="location"
-                        value={formData.location}
-                        onChange={handleInputChange}
-                        style={styles.input}
-                        placeholder="Add location"
-                      />
-                    </div>
-                  </div>
+                  {/* Location & Tags - Only for Posts */}
+                  {selectedType !== 'story' && (
+                    <>
+                      <div style={styles.formGroup}>
+                        <label style={styles.formLabel}>Location</label>
+                        <div style={styles.inputWithIcon}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
+                          </svg>
+                          <input 
+                            type="text"
+                            name="location"
+                            value={formData.location}
+                            onChange={handleInputChange}
+                            style={styles.input}
+                            placeholder="Add location"
+                          />
+                        </div>
+                      </div>
 
-                  {/* Tag People */}
-                  <div style={styles.formGroup}>
-                    <label style={styles.formLabel}>Tag People</label>
-                    <div style={styles.inputWithIcon}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                      </svg>
-                      <input 
-                        type="text"
-                        name="taggedPeople"
-                        value={formData.taggedPeople}
-                        onChange={handleInputChange}
-                        style={styles.input}
-                        placeholder="Tag people (comma separated)"
-                      />
-                    </div>
-                  </div>
+                      <div style={styles.formGroup}>
+                        <label style={styles.formLabel}>Tag People</label>
+                        <div style={styles.inputWithIcon}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                          </svg>
+                          <input 
+                            type="text"
+                            name="taggedPeople"
+                            value={formData.taggedPeople}
+                            onChange={handleInputChange}
+                            style={styles.input}
+                            placeholder="Tag people (comma separated)"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
 
-                  {/* Share Post Button */}
+                  {/* Submit Button */}
                   <button 
                     style={{
                       ...styles.shareButton,
+                      background: selectedType === 'story' 
+                        ? 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)'
+                        : '#4371f0',
                       opacity: loading ? 0.6 : 1,
                       cursor: loading ? 'not-allowed' : 'pointer'
                     }}
-                    onClick={handleSubmit}
+                    onClick={selectedType === 'story' ? handleSubmitStory : handleSubmit}
                     disabled={loading}
                   >
-                    {loading ? 'Posting...' : 'Share Post'}
+                    {loading 
+                      ? 'Posting...' 
+                      : selectedType === 'story' 
+                        ? 'Share Story' 
+                        : 'Share Post'
+                    }
                   </button>
                 </div>
               </div>
@@ -445,7 +529,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   pageTitle: { fontSize: '38px', fontWeight: '700', color: '#111', marginBottom: '15px' },
   subtitle: { fontSize: '22px', fontWeight: '600', color: '#333', marginBottom: '40px' },
 
-  // Options Grid (Initial View)
   optionsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '30px', maxWidth: '900px', marginTop: '40px' },
   optionCard: {
     background: 'white',
@@ -471,7 +554,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   optionTitle: { fontSize: '20px', fontWeight: '600', color: '#111', margin: 0 },
 
-  // Create New Post View
   createContainer: { maxWidth: '1200px' },
   createHeader: { display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '35px' },
   backButton: {
@@ -487,6 +569,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: 'all 0.2s',
   },
   createTitle: { fontSize: '28px', fontWeight: '700', color: '#111', margin: 0 },
+  storyBadge: {
+    background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743)',
+    color: 'white',
+    padding: '4px 12px',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: '600',
+  },
   
   errorBox: {
     background: '#fee',
@@ -500,11 +590,9 @@ const styles: { [key: string]: React.CSSProperties } = {
 
   createContent: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' },
   
-  // Preview Section
   previewSection: {},
   sectionTitle: { fontSize: '20px', fontWeight: '600', color: '#111', marginBottom: '16px' },
   previewBox: {
-    background: '#e8f4f8',
     borderRadius: '16px',
     minHeight: '500px',
     display: 'flex',
@@ -523,11 +611,10 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   fileInput: { display: 'none' },
   uploadIcon: { marginBottom: '16px' },
-  uploadText: { fontSize: '18px', fontWeight: '600', color: '#333', margin: '8px 0' },
-  uploadSubtext: { fontSize: '14px', color: '#666', margin: 0 },
+  uploadText: { fontSize: '18px', fontWeight: '600', margin: '8px 0' },
+  uploadSubtext: { fontSize: '14px', margin: 0 },
   previewImage: { width: '100%', height: '100%', objectFit: 'cover' },
 
-  // Form Section
   formSection: {},
   formGroup: { marginBottom: '24px' },
   formLabel: { display: 'block', fontSize: '15px', fontWeight: '600', color: '#111', marginBottom: '8px' },
@@ -564,7 +651,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   shareButton: {
     width: '100%',
     padding: '16px',
-    background: '#4371f0',
     color: 'white',
     border: 'none',
     borderRadius: '10px',

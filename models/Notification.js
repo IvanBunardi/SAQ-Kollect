@@ -1,11 +1,10 @@
 import mongoose from 'mongoose';
 
-const NotificationSchema = new mongoose.Schema({
+const notificationSchema = new mongoose.Schema({
   recipient: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    required: true
   },
   sender: {
     type: mongoose.Schema.Types.ObjectId,
@@ -14,8 +13,17 @@ const NotificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['like', 'comment', 'follow', 'mention'],
+    enum: [
+      'like', 'comment', 'follow', 'mention',
+      'campaign_invite', 'campaign_accepted', 'campaign_declined',
+      'work_submitted', 'work_approved', 'work_revision',
+      'system'
+    ],
     required: true
+  },
+  message: {
+    type: String,
+    default: ''
   },
   post: {
     type: mongoose.Schema.Types.ObjectId,
@@ -27,9 +35,21 @@ const NotificationSchema = new mongoose.Schema({
     ref: 'Comment',
     default: null
   },
-  message: {
-    type: String,
-    required: true
+  // ✅ TAMBAH INI!
+  campaign: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Campaign',
+    default: null
+  },
+  // ✅ TAMBAH INI!
+  work: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Work',
+    default: null
+  },
+  data: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   },
   isRead: {
     type: Boolean,
@@ -39,8 +59,9 @@ const NotificationSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index untuk query cepat
-NotificationSchema.index({ recipient: 1, createdAt: -1 });
-NotificationSchema.index({ recipient: 1, isRead: 1 });
+notificationSchema.index({ recipient: 1, createdAt: -1 });
+notificationSchema.index({ recipient: 1, isRead: 1 });
 
-export default mongoose.models.Notification || mongoose.model('Notification', NotificationSchema);
+const Notification = mongoose.models.Notification || mongoose.model('Notification', notificationSchema);
+
+export default Notification;

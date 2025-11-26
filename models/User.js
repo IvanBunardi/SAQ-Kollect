@@ -1,78 +1,144 @@
-// models/User.js
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
-const UserSchema = new mongoose.Schema(
-  {
-    email: {
-      type: String,
-      required: [true, 'Email is required'],
-      unique: true,
-      lowercase: true,
-      trim: true,
-      match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
-    },
-    password: {
-      type: String,
-      required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters'],
-    },
-    fullname: {
-      type: String,
-      required: [true, 'Full name is required'],
-      trim: true,
-    },
-    username: {
-      type: String,
-      required: [true, 'Username is required'],
-      unique: true,
-      trim: true,
-      minlength: [3, 'Username must be at least 3 characters'],
-    },
-    role: {
-      type: String,
-      enum: ['user', 'kol', 'brand', 'company', 'admin'],
-      default: 'user',
-    },
-    profilePhoto: {
-      type: String,
-      default: null,
-    },
-    bio: {
-      type: String,
-      default: '',
-      maxlength: [500, 'Bio cannot exceed 500 characters'],
-    },
-    website: {
-      type: String,
-      default: '',
-    },
-    gender: {
-      type: String,
-      enum: ['Memilih tidak memberi tahu', 'Laki-laki', 'Perempuan', 'Lainnya'],
-      default: 'Memilih tidak memberi tahu',
-    },
-    category: {
-      type: String,
-      enum: ['Tech', 'Fashion', 'Food', 'Travel', 'Lifestyle', 'Gaming', 'Beauty', 'Fitness', 'Business', 'Other'],
-      default: 'Tech',
-    },
-    // ✅ TAMBAHAN BARU - FOLLOWERS & FOLLOWING
-    followers: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-    }],
-    following: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-    }],
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
+const userSchema = new mongoose.Schema({
+  // Basic info
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true
   },
-  {
-    timestamps: true,
-  }
-);
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true
+  },
+  password: {
+    type: String,
+    required: true,
+    select: false
+  },
+  fullname: String,
+  bio: String,
+  website: String,
+  profilePhoto: String,
+  gender: {
+    type: String,
+    enum: ['Laki-laki', 'Perempuan', 'Lainnya', 'Memilih tidak memberi tahu'],
+    default: 'Memilih tidak memberi tahu'
+  },
 
-export default mongoose.models.User || mongoose.model('User', UserSchema);
+  // Account type
+  accountType: {
+    type: String,
+    enum: ['kol', 'brand'],
+    required: true
+  },
+
+  // Company info (for brand)
+  companyName: String,
+  industry: String,
+
+  // Social
+  followers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  following: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+
+  // Settings - Language
+  language: {
+    type: String,
+    enum: ['en', 'id', 'es', 'fr', 'de', 'ja', 'zh'],
+    default: 'en'
+  },
+
+  // Settings - Notifications
+  notificationSettings: {
+    likes: { type: Boolean, default: true },
+    comments: { type: Boolean, default: true },
+    follows: { type: Boolean, default: true },
+    mentions: { type: Boolean, default: true },
+    campaigns: { type: Boolean, default: true },
+    messages: { type: Boolean, default: true },
+    email: { type: Boolean, default: true },
+    push: { type: Boolean, default: true }
+  },
+
+  // Settings - Privacy
+  isPrivate: {
+    type: Boolean,
+    default: false
+  },
+
+  showActivity: {
+    type: Boolean,
+    default: true
+  },
+
+  showEmail: {
+    type: Boolean,
+    default: false
+  },
+
+  // Settings - Blocked & Close Friends
+  blockedUsers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+
+  closeFriends: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+
+  // Account status
+  verificationToken: String,
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: true,
+  strictPopulate: false  // ✅ PENTING untuk populate path validation
+});
+
+// Hash password before save
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Indexes untuk performance
+userSchema.index({ username: 1 });
+userSchema.index({ email: 1 });
+userSchema.index({ accountType: 1 });
+userSchema.index({ createdAt: -1 });
+
+// Prevent duplicate model creation
+const User = mongoose.models.User || mongoose.model('User', userSchema);
+
+export default User;

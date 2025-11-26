@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import PostModal from '../../components/PostModal'
 
 interface Post {
   _id: string;
@@ -27,6 +26,20 @@ interface Post {
   createdAt: string;
 }
 
+interface Metrics {
+  avgEngagementRate: number;
+  avgLikesPerPost: number;
+  avgCommentsPerPost: number;
+  totalReach: number;
+  totalLikes: number;
+  totalComments: number;
+  totalSaves: number;
+  totalPosts: number;
+  postFrequency: number;
+  followersCount: number;
+  bestPerformingPost: any;
+}
+
 export default function ProfilePage() {
   const [activeNav, setActiveNav] = useState('profile');
   const [activeTab, setActiveTab] = useState('profile');
@@ -47,34 +60,46 @@ export default function ProfilePage() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   
-  // ✅ STATE FOR MODAL
+  const [metrics, setMetrics] = useState<Metrics>({
+    avgEngagementRate: 0,
+    avgLikesPerPost: 0,
+    avgCommentsPerPost: 0,
+    totalReach: 0,
+    totalLikes: 0,
+    totalComments: 0,
+    totalSaves: 0,
+    totalPosts: 0,
+    postFrequency: 0,
+    followersCount: 0,
+    bestPerformingPost: null
+  });
+  const [metricsLoading, setMetricsLoading] = useState(true);
+  
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
   
   const router = useRouter();
 
   useEffect(() => {
-    console.log('🚀 Profile page mounted, fetching user profile...');
     fetchUserProfile();
   }, []);
 
   useEffect(() => {
     if (userData?.username) {
       fetchUserPosts();
+      fetchMetrics();
     }
   }, [userData]);
 
   const fetchUserProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      console.log('🔍 Token from localStorage:', token ? token.substring(0, 30) + '...' : 'null');
       
       if (!token) {
-        console.log('❌ No token found, redirecting to login');
         router.push('/login');
         return;
       }
       
-      console.log('📡 Fetching profile with token...');
       const response = await fetch('/api/profile', {
         method: 'GET',
         headers: {
@@ -83,35 +108,26 @@ export default function ProfilePage() {
         },
       });
       
-      console.log('📊 Response status:', response.status);
       const data = await response.json();
-      console.log('📦 Response data:', data);
       
       if (data.success && data.user) {
         setUserData(data.user);
-        
         setFollowersCount(data.user.followersCount || 0);
         setFollowingCount(data.user.followingCount || 0);
-        
         setEditFormData({
           fullname: data.user.fullname || '',
           username: data.user.username || '',
         });
-        console.log('✅ User data loaded successfully:', data.user.username);
-        console.log('👥 Followers:', data.user.followersCount, 'Following:', data.user.followingCount);
       } else {
         setError(data.message || 'Failed to load profile');
-        console.error('❌ API error:', data.message);
-        
         if (response.status === 401) {
-          console.log('🔐 Token invalid, clearing and redirecting to login');
           localStorage.removeItem('token');
           router.push('/login');
         }
       }
     } catch (err) {
       setError('Failed to load profile');
-      console.error('❌ Profile fetch error:', err);
+      console.error('Profile fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -119,26 +135,48 @@ export default function ProfilePage() {
 
   const fetchUserPosts = async () => {
     try {
-      console.log('📡 Fetching own posts for:', userData.username);
-
       const res = await fetch(`/api/post/user/${userData.username}`, {
         credentials: 'include',
       });
 
       if (res.ok) {
         const data = await res.json();
-        console.log('✅ Posts loaded:', data.posts.length);
         setPosts(data.posts || []);
       } else {
-        console.error('Failed to load posts');
         setPosts([]);
       }
-      
       setPostsLoading(false);
     } catch (err) {
-      console.error('❌ Error fetching posts:', err);
+      console.error('Error fetching posts:', err);
       setPostsLoading(false);
     }
+  };
+
+  const fetchMetrics = async () => {
+    try {
+      setMetricsLoading(true);
+      const res = await fetch('/api/profile/metrics', {
+        credentials: 'include'
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setMetrics(data.metrics);
+          console.log('📊 Metrics loaded:', data.metrics);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching metrics:', err);
+    } finally {
+      setMetricsLoading(false);
+    }
+  };
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toString();
   };
 
   const handleEditClick = () => {
@@ -178,8 +216,6 @@ export default function ProfilePage() {
         return;
       }
 
-      console.log('💾 Saving profile...', editFormData);
-
       const response = await fetch('/api/profile', { 
         method: 'PUT',
         headers: {
@@ -190,41 +226,58 @@ export default function ProfilePage() {
       });
 
       const data = await response.json();
-      console.log('📦 Update response:', data);
 
       if (data.success && data.user) {
         setUserData(data.user);
         setIsEditing(false);
         setSaveSuccess('Profile updated successfully!');
-        console.log('✅ Profile updated successfully');
-        
         setTimeout(() => setSaveSuccess(''), 3000);
       } else {
         setSaveError(data.message || 'Failed to update profile');
-        console.error('❌ Update error:', data.message);
       }
     } catch (err) {
       setSaveError('Failed to update profile');
-      console.error('❌ Profile update error:', err);
+      console.error('Profile update error:', err);
     } finally {
       setSaveLoading(false);
     }
   };
 
   const handleLogout = () => {
-    console.log('🚪 Logging out...');
     localStorage.removeItem('token');
     router.push('/login');
   };
 
   const getAvatarUrl = (profilePhoto?: string, profilePicture?: string, fallbackName?: string) => {
-    if (profilePhoto && profilePhoto.trim() !== '') {
-      return profilePhoto;
-    }
-    if (profilePicture && profilePicture.trim() !== '') {
-      return profilePicture;
-    }
+    if (profilePhoto && profilePhoto.trim() !== '') return profilePhoto;
+    if (profilePicture && profilePicture.trim() !== '') return profilePicture;
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName || 'User')}&background=random&size=150&bold=true`;
+  };
+
+  const selectedPost = selectedPostId ? posts.find(p => p._id === selectedPostId) : null;
+
+  const handlePostComment = async () => {
+    if (!commentText.trim() || !selectedPost) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/post/${selectedPost._id}/comment`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: commentText }),
+      });
+
+      if (res.ok) {
+        setCommentText('');
+        // Refresh posts to show updated comment count
+        fetchUserPosts();
+      }
+    } catch (err) {
+      console.error('Error posting comment:', err);
+    }
   };
 
   if (loading) {
@@ -263,19 +316,170 @@ export default function ProfilePage() {
         body { margin: 0; padding: 0; overflow-x: hidden; }
       `}</style>
 
+      {/* ✅ MODAL */}
+      {selectedPost && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000
+        }}
+        onClick={() => setSelectedPostId(null)}
+        >
+          <div style={{
+            background: 'white', borderRadius: '20px', maxWidth: '900px',
+            width: '90%', maxHeight: '80vh', overflow: 'auto',
+            display: 'grid', gridTemplateColumns: '1fr 400px',
+            position: 'relative'
+          }}
+          onClick={(e) => e.stopPropagation()}
+          >
+            {/* Media */}
+            <div style={{
+              background: '#000', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', minHeight: '500px'
+            }}>
+              {selectedPost.type === 'video' ? (
+                <video src={selectedPost.mediaUrl} style={{
+                  maxWidth: '100%', maxHeight: '100%', objectFit: 'contain'
+                }} controls autoPlay />
+              ) : (
+                <img src={selectedPost.mediaUrl} alt="Post" style={{
+                  maxWidth: '100%', maxHeight: '100%', objectFit: 'contain'
+                }} />
+              )}
+            </div>
+
+            {/* Details Sidebar */}
+            <div style={{
+              padding: '24px', display: 'flex', flexDirection: 'column',
+              background: '#f9f9f9', overflow: 'auto'
+            }}>
+              {/* Close Button */}
+              <button style={{
+                position: 'absolute', top: '16px', right: '16px',
+                background: 'white', border: 'none', width: '36px', height: '36px',
+                borderRadius: '50%', cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', zIndex: 1001,
+                fontSize: '20px', fontWeight: 'bold'
+              }}
+              onClick={() => setSelectedPostId(null)}
+              >
+                ✕
+              </button>
+
+              {/* Author */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', marginTop: '10px' }}>
+                <img src={getAvatarUrl(selectedPost.user.profilePhoto, selectedPost.user.profilePicture, selectedPost.user.name)}
+                  alt="User" style={{
+                    width: '44px', height: '44px', borderRadius: '50%',
+                    objectFit: 'cover'
+                  }}
+                />
+                <div>
+                  <p style={{ margin: 0, fontWeight: '600', color: '#111' }}>
+                    {selectedPost.user.name || selectedPost.user.username}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#666' }}>
+                    @{selectedPost.user.username}
+                  </p>
+                </div>
+              </div>
+
+              {/* Caption */}
+              <p style={{
+                fontSize: '15px', color: '#333', marginBottom: '16px',
+                lineHeight: '1.5', borderBottom: '1px solid #e0e0e0',
+                paddingBottom: '16px'
+              }}>
+                {selectedPost.caption}
+              </p>
+
+              {/* Location */}
+              {selectedPost.location && (
+                <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>
+                  📍 {selectedPost.location}
+                </p>
+              )}
+
+              {/* Stats */}
+              <div style={{
+                display: 'flex', gap: '16px', padding: '16px 0',
+                borderTop: '1px solid #e0e0e0', borderBottom: '1px solid #e0e0e0'
+              }}>
+                <span style={{ fontSize: '14px', color: '#333' }}>
+                  <strong>❤️ {selectedPost.likesCount}</strong> likes
+                </span>
+                <span style={{ fontSize: '14px', color: '#333' }}>
+                  <strong>💬 {selectedPost.commentsCount}</strong> comments
+                </span>
+                <span style={{ fontSize: '14px', color: '#333' }}>
+                  <strong>🔖 {selectedPost.savesCount}</strong> saves
+                </span>
+              </div>
+
+              {/* Date */}
+              <p style={{
+                fontSize: '12px', color: '#999', marginTop: '16px'
+              }}>
+                {new Date(selectedPost.createdAt).toLocaleDateString('en-US', {
+                  month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                })}
+              </p>
+
+              {/* Comments Section */}
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #e0e0e0', flex: 1, overflow: 'auto' }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600' }}>Comments</h3>
+                <div style={{ fontSize: '13px', color: '#999', textAlign: 'center', padding: '20px' }}>
+                  💬 Comments coming soon!
+                </div>
+              </div>
+
+              {/* Comment Input */}
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e0e0e0' }}>
+                <textarea
+                  placeholder="Add a comment..."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  style={{
+                    width: '100%', padding: '12px', border: '1px solid #e0e0e0',
+                    borderRadius: '8px', fontSize: '13px', fontFamily: 'inherit',
+                    boxSizing: 'border-box', resize: 'none'
+                  }}
+                  rows={2}
+                />
+                <button 
+                  onClick={handlePostComment}
+                  disabled={!commentText.trim()}
+                  style={{
+                    width: '100%', marginTop: '8px', padding: '10px',
+                    background: commentText.trim() ? '#e357a3' : '#ddd', 
+                    color: 'white', border: 'none',
+                    borderRadius: '8px', fontSize: '13px', fontWeight: '600',
+                    cursor: commentText.trim() ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  Post Comment
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={styles.circles}>
-        <div style={{...styles.circle, ...styles.blue, ...styles.huge, top: '-180px', left: '-180px', animationDelay: '0s'}}></div>
-        <div style={{...styles.circle, ...styles.lightpink, ...styles.extrabig, top: '-120px', left: '120px', animationDelay: '2s'}}></div>
-        <div style={{...styles.circle, ...styles.lightblue, ...styles.big, top: '50px', left: '150px', animationDelay: '1s'}}></div>
-        <div style={{...styles.circle, ...styles.blue, ...styles.huge, bottom: '-150px', left: '-120px', animationDelay: '1s'}}></div>
-        <div style={{...styles.circle, ...styles.pink, ...styles.extrabig, bottom: '-80px', left: '180px', animationDelay: '3s'}}></div>
-        <div style={{...styles.circle, ...styles.blue, ...styles.huge, top: '-160px', right: '-160px', animationDelay: '2s'}}></div>
-        <div style={{...styles.circle, ...styles.lightpink, ...styles.extrabig, top: '-100px', right: '140px', animationDelay: '4s'}}></div>
-        <div style={{...styles.circle, ...styles.blue, ...styles.huge, bottom: '-140px', right: '-120px', animationDelay: '3s'}}></div>
-        <div style={{...styles.circle, ...styles.pink, ...styles.extrabig, bottom: '-60px', right: '160px', animationDelay: '1s'}}></div>
+        <div style={{...styles.circle, ...styles.blue, ...styles.huge, top: '-180px', left: '-180px'}}></div>
+        <div style={{...styles.circle, ...styles.lightpink, ...styles.extrabig, top: '-120px', left: '120px'}}></div>
+        <div style={{...styles.circle, ...styles.lightblue, ...styles.big, top: '50px', left: '150px'}}></div>
+        <div style={{...styles.circle, ...styles.blue, ...styles.huge, bottom: '-150px', left: '-120px'}}></div>
+        <div style={{...styles.circle, ...styles.pink, ...styles.extrabig, bottom: '-80px', left: '180px'}}></div>
+        <div style={{...styles.circle, ...styles.blue, ...styles.huge, top: '-160px', right: '-160px'}}></div>
+        <div style={{...styles.circle, ...styles.lightpink, ...styles.extrabig, top: '-100px', right: '140px'}}></div>
+        <div style={{...styles.circle, ...styles.blue, ...styles.huge, bottom: '-140px', right: '-120px'}}></div>
+        <div style={{...styles.circle, ...styles.pink, ...styles.extrabig, bottom: '-60px', right: '160px'}}></div>
       </div>
 
       <div style={styles.container}>
+        {/* Sidebar */}
         <div style={styles.sidebar}>
           <div style={styles.logo}>
             <Image src="/assets/logo-full.png" alt="Kollect Logo" width={200} height={106} style={{objectFit: 'contain'}} />
@@ -323,7 +527,7 @@ export default function ProfilePage() {
               </svg>
               <span>Create</span>
             </Link>
-            <Link href="/profile" style={{...styles.navItem, ...(activeNav === 'profile' ? styles.navItemActive : {})}}>
+            <Link href="/profile" style={{...styles.navItem, ...styles.navItemActive}}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>
@@ -356,30 +560,20 @@ export default function ProfilePage() {
           
           <div style={styles.sidebarDecoration}>
             <div style={{...styles.sidebarCircle, width: '100px', height: '100px', bottom: '20px', left: '-20px', background: '#4371f0'}}></div>
-            <div style={{...styles.sidebarCircle, width: '80px', height: '80px', bottom: '80px', left: '30px', background: '#e357a3', animationDelay: '2s'}}></div>
+            <div style={{...styles.sidebarCircle, width: '80px', height: '80px', bottom: '80px', left: '30px', background: '#e357a3'}}></div>
           </div>
         </div>
 
+        {/* Main Content */}
         <div style={styles.mainContent}>
-          {saveSuccess && (
-            <div style={styles.successMessage}>
-              {saveSuccess}
-            </div>
-          )}
-          {saveError && (
-            <div style={styles.errorMessage}>
-              {saveError}
-            </div>
-          )}
+          {saveSuccess && <div style={styles.successMessage}>{saveSuccess}</div>}
+          {saveError && <div style={styles.errorMessage}>{saveError}</div>}
 
+          {/* Profile Header */}
           <div style={styles.profileHeader}>
             <div style={styles.profileAvatar}>
               <img 
-                src={getAvatarUrl(
-                  userData?.profilePhoto,
-                  userData?.profilePicture,
-                  userData?.fullname || userData?.username
-                )}
+                src={getAvatarUrl(userData?.profilePhoto, userData?.profilePicture, userData?.fullname || userData?.username)}
                 alt="Profile" 
                 style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}}
                 onError={(e: any) => {
@@ -437,9 +631,11 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          {/* Action Buttons */}
           <div style={styles.actionButtons}>
             {!isEditing ? (
               <>
+<<<<<<< HEAD
                 <button style={styles.btnSecondary} onClick={handleEditClick}>
                   Edit Profile
                 </button>
@@ -447,27 +643,23 @@ export default function ProfilePage() {
                   Settings
                 </button>
                
+=======
+                <button style={styles.btnSecondary} onClick={handleEditClick}>Edit Profile</button>
+                <button style={styles.btnSecondary} onClick={() => router.push('/settings')}>Settings</button>
+                <button style={styles.btnPrimary} onClick={() => router.push('/hire-campaign')}>Hire for Campaign</button>
+>>>>>>> e951f174106a5e9c920108f2a61148f896bb311e
               </>
             ) : (
               <>
-                <button 
-                  style={{...styles.btnSecondary, opacity: saveLoading ? 0.6 : 1}} 
-                  onClick={handleCancelEdit}
-                  disabled={saveLoading}
-                >
-                  Cancel
-                </button>
-                <button 
-                  style={{...styles.btnPrimary, opacity: saveLoading ? 0.6 : 1}} 
-                  onClick={handleSaveProfile}
-                  disabled={saveLoading}
-                >
+                <button style={{...styles.btnSecondary, opacity: saveLoading ? 0.6 : 1}} onClick={handleCancelEdit} disabled={saveLoading}>Cancel</button>
+                <button style={{...styles.btnPrimary, opacity: saveLoading ? 0.6 : 1}} onClick={handleSaveProfile} disabled={saveLoading}>
                   {saveLoading ? 'Saving...' : 'Save Changes'}
                 </button>
               </>
             )}
           </div>
 
+          {/* Tabs */}
           <div style={styles.tabsContainer}>
             <button 
               style={{...styles.tab, ...(activeTab === 'profile' ? styles.tabActive : {})}}
@@ -476,14 +668,16 @@ export default function ProfilePage() {
               Profile
             </button>
             <button 
-              style={{...styles.tab, ...(activeTab === 'work' ? styles.tabInactive : {})}}
+              style={{...styles.tab, ...(activeTab === 'work' ? styles.tabActive : {})}}
               onClick={() => setActiveTab('work')}
             >
               Work
             </button>
           </div>
 
+          {/* Content Grid */}
           <div style={styles.contentGrid}>
+            {/* Recent Posts Card */}
             <div style={{...styles.card, background: 'linear-gradient(135deg, #a5c8f0, #c8ddf0)'}}>
               <div style={styles.cardHeader}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
@@ -505,47 +699,26 @@ export default function ProfilePage() {
                       <div 
                         key={post._id} 
                         style={{
-                          borderRadius: '12px', 
-                          overflow: 'hidden', 
-                          height: '120px', 
-                          background: '#fff',
-                          cursor: 'pointer',
-                          position: 'relative'
+                          borderRadius: '12px', overflow: 'hidden', height: '120px', 
+                          background: '#fff', cursor: 'pointer', position: 'relative'
                         }}
                         onClick={() => setSelectedPostId(post._id)}
                       >
                         {post.mediaUrl ? (
                           post.type === 'video' ? (
-                            <video 
-                              src={post.mediaUrl} 
-                              style={{width: '100%', height: '100%', objectFit: 'cover'}}
-                              muted
-                            />
+                            <video src={post.mediaUrl} style={{width: '100%', height: '100%', objectFit: 'cover'}} muted />
                           ) : (
-                            <img 
-                              src={post.mediaUrl} 
-                              alt="Post" 
-                              style={{width: '100%', height: '100%', objectFit: 'cover'}} 
-                            />
+                            <img src={post.mediaUrl} alt="Post" style={{width: '100%', height: '100%', objectFit: 'cover'}} />
                           )
                         ) : (
-                          <div style={{padding: '8px', fontSize: '12px', color: '#666'}}>
-                            {post.caption}
-                          </div>
+                          <div style={{padding: '8px', fontSize: '12px', color: '#666'}}>{post.caption}</div>
                         )}
                         
                         {post.type === 'video' && (
                           <div style={{
-                            position: 'absolute',
-                            top: '8px',
-                            right: '8px',
-                            background: 'rgba(0,0,0,0.6)',
-                            borderRadius: '50%',
-                            width: '24px',
-                            height: '24px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
+                            position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.6)',
+                            borderRadius: '50%', width: '24px', height: '24px', display: 'flex',
+                            alignItems: 'center', justifyContent: 'center'
                           }}>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
                               <polygon points="5 3 19 12 5 21 5 3"/>
@@ -559,37 +732,51 @@ export default function ProfilePage() {
               </div>
             </div>
 
+            {/* Performance Metrics */}
             <div style={{...styles.card, background: 'linear-gradient(135deg, #e357a3, #f4a3c8)'}}>
               <div style={styles.cardHeader}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                  <rect x="3" y="3" width="7" height="7"/>
-                  <rect x="14" y="3" width="7" height="7"/>
-                  <rect x="14" y="14" width="7" height="7"/>
-                  <rect x="3" y="14" width="7" height="7"/>
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                 </svg>
                 <h3 style={styles.cardTitle}>Performance Metrics</h3>
+                {metricsLoading && <span style={{color: 'rgba(255,255,255,0.7)', fontSize: '12px', marginLeft: '8px'}}>Loading...</span>}
               </div>
               <div style={styles.metricsGrid}>
                 <div style={styles.metricBox}>
-                  <p style={styles.metricValue}>5.4%</p>
-                  <p style={styles.metricLabel}>Avg. Engagement Rate</p>
+                  <p style={styles.metricValue}>
+                    {metrics.avgEngagementRate > 0 ? `${metrics.avgEngagementRate}%` : '0%'}
+                  </p>
+                  <p style={styles.metricLabel}>Engagement Rate</p>
                 </div>
                 <div style={styles.metricBox}>
-                  <p style={styles.metricValue}>25K</p>
-                  <p style={styles.metricLabel}>Avg. Per Post</p>
+                  <p style={styles.metricValue}>{formatNumber(metrics.avgLikesPerPost)}</p>
+                  <p style={styles.metricLabel}>Avg. Likes/Post</p>
                 </div>
                 <div style={styles.metricBox}>
-                  <p style={styles.metricValue}>3.5%</p>
-                  <p style={styles.metricLabel}>Click-Through Rate</p>
+                  <p style={styles.metricValue}>{formatNumber(metrics.totalReach)}</p>
+                  <p style={styles.metricLabel}>Total Reach</p>
                 </div>
                 <div style={styles.metricBox}>
-                  <p style={styles.metricValue}>2.4%</p>
-                  <p style={styles.metricLabel}>Conversion Rate</p>
+                  <p style={styles.metricValue}>{metrics.postFrequency}/mo</p>
+                  <p style={styles.metricLabel}>Post Frequency</p>
+                </div>
+              </div>
+              
+              <div style={{marginTop: '16px', display: 'flex', gap: '20px', flexWrap: 'wrap'}}>
+                <div style={{background: 'rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: '20px'}}>
+                  <span style={{color: 'white', fontSize: '13px'}}>❤️ {formatNumber(metrics.totalLikes)} likes</span>
+                </div>
+                <div style={{background: 'rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: '20px'}}>
+                  <span style={{color: 'white', fontSize: '13px'}}>💬 {formatNumber(metrics.totalComments)} comments</span>
+                </div>
+                <div style={{background: 'rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: '20px'}}>
+                  <span style={{color: 'white', fontSize: '13px'}}>🔖 {formatNumber(metrics.totalSaves)} saves</span>
                 </div>
               </div>
             </div>
           </div>
 
+          {/* All Posts Grid */}
           <div style={{marginTop: '40px'}}>
             <h2 style={{fontSize: '24px', fontWeight: '600', marginBottom: '20px'}}>
               All Posts ({posts.length})
@@ -604,14 +791,8 @@ export default function ProfilePage() {
                 <p>No posts yet. Create your first post!</p>
                 <button 
                   style={{
-                    marginTop: '20px',
-                    padding: '12px 32px',
-                    background: '#4371f0',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '10px',
-                    fontWeight: '600',
-                    cursor: 'pointer'
+                    marginTop: '20px', padding: '12px 32px', background: '#4371f0',
+                    color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer'
                   }}
                   onClick={() => router.push('/create')}
                 >
@@ -619,54 +800,43 @@ export default function ProfilePage() {
                 </button>
               </div>
             ) : (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '12px',
-                marginBottom: '40px'
-              }}>
+              <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '40px'}}>
                 {posts.map((post) => (
                   <div 
                     key={post._id}
                     style={{
-                      width: '100%',
-                      height: '260px',
-                      borderRadius: '12px',
-                      overflow: 'hidden',
-                      background: '#eee',
-                      cursor: 'pointer',
-                      position: 'relative'
+                      width: '100%', height: '260px', borderRadius: '12px',
+                      overflow: 'hidden', background: '#eee', cursor: 'pointer', position: 'relative'
                     }}
                     onClick={() => setSelectedPostId(post._id)}
                   >
                     {post.type === 'video' ? (
-                      <video 
-                        src={post.mediaUrl} 
-                        style={{width: '100%', height: '100%', objectFit: 'cover'}}
-                        muted
-                      />
+                      <video src={post.mediaUrl} style={{width: '100%', height: '100%', objectFit: 'cover'}} muted />
                     ) : (
-                      <img 
-                        src={post.mediaUrl} 
-                        alt="Post" 
-                        style={{width: '100%', height: '100%', objectFit: 'cover'}} 
-                      />
+                      <img src={post.mediaUrl} alt="Post" style={{width: '100%', height: '100%', objectFit: 'cover'}} />
                     )}
+                    
+                    <div style={{
+                      position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      gap: '16px', opacity: 0, transition: 'opacity 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '0'}
+                    >
+                      <span style={{color: 'white', fontSize: '16px', fontWeight: '600'}}>
+                        ❤️ {post.likesCount}
+                      </span>
+                      <span style={{color: 'white', fontSize: '16px', fontWeight: '600'}}>
+                        💬 {post.commentsCount}
+                      </span>
+                    </div>
                     
                     {post.type === 'video' && (
                       <div style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        background: 'rgba(0,0,0,0.6)',
-                        borderRadius: '50%',
-                        width: '48px',
-                        height: '48px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        pointerEvents: 'none'
+                        position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                        background: 'rgba(0,0,0,0.6)', borderRadius: '50%', width: '48px', height: '48px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none'
                       }}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                           <polygon points="5 3 19 12 5 21 5 3"/>
@@ -678,22 +848,8 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
-
-          <div style={styles.placeholderGrid}>
-            <div style={styles.placeholderCard}></div>
-            <div style={styles.placeholderCardLarge}></div>
-            <div style={styles.placeholderCard}></div>
-          </div>
         </div>
       </div>
-
-      {/* ✅ POST MODAL */}
-      {selectedPostId && (
-        <PostModal 
-          postId={selectedPostId} 
-          onClose={() => setSelectedPostId(null)} 
-        />
-      )}
     </>
   );
 }
@@ -705,7 +861,6 @@ const styles = {
   lightpink: { background: '#f4a3c8' },
   blue: { background: '#4371f0' },
   lightblue: { background: '#a5c8f0' },
-  verylightblue: { background: '#c8ddf0' },
   huge: { width: '350px', height: '350px' },
   extrabig: { width: '280px', height: '280px' },
   big: { width: '200px', height: '200px' },
@@ -732,13 +887,11 @@ const styles = {
   
   successMessage: {
     background: '#d4edda', color: '#155724', padding: '14px 20px',
-    borderRadius: '12px', marginBottom: '20px', fontSize: '15px',
-    border: '1px solid #c3e6cb'
+    borderRadius: '12px', marginBottom: '20px', fontSize: '15px', border: '1px solid #c3e6cb'
   },
   errorMessage: {
     background: '#f8d7da', color: '#721c24', padding: '14px 20px',
-    borderRadius: '12px', marginBottom: '20px', fontSize: '15px',
-    border: '1px solid #f5c6cb'
+    borderRadius: '12px', marginBottom: '20px', fontSize: '15px', border: '1px solid #f5c6cb'
   },
   
   profileHeader: { display: 'flex', gap: '35px', marginBottom: '30px', alignItems: 'flex-start' as const },
@@ -748,7 +901,7 @@ const styles = {
   },
   profileInfo: { flex: 1 },
   profileUsername: { margin: 0, fontSize: '32px', fontWeight: '700' as const, color: '#111', marginBottom: '5px' },
-  profileTitle: { margin: 0, fontSize: '20px', fontWeight: '600' as const, color: '#111', marginBottom: '8px' },
+  profileTitle: { margin: 0, fontSize: '20px', fontWeight: '600' as const, color: '#e357a3', marginBottom: '8px' },
   profileCategory: { margin: 0, fontSize: '16px', color: '#666', marginBottom: '15px' },
   profileStats: { display: 'flex', gap: '25px', marginBottom: '15px' },
   stat: { fontSize: '15px', color: '#333' },
@@ -782,7 +935,6 @@ const styles = {
     position: 'relative' as const, transition: 'color 0.2s'
   },
   tabActive: { color: '#333', fontWeight: '600' as const },
-  tabInactive: { color: '#999' },
   
   contentGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '25px', marginBottom: '25px' },
   card: { borderRadius: '24px', padding: '28px', minHeight: '300px' },
@@ -793,10 +945,6 @@ const styles = {
   metricBox: { background: 'white', borderRadius: '16px', padding: '20px', textAlign: 'center' as const },
   metricValue: { margin: 0, fontSize: '28px', fontWeight: '700' as const, color: '#111', marginBottom: '5px' },
   metricLabel: { margin: 0, fontSize: '13px', color: '#666' },
-  
-  placeholderGrid: { display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: '25px' },
-  placeholderCard: { background: 'linear-gradient(135deg, #e8e8e8, #f5f5f5)', borderRadius: '24px', minHeight: '280px' },
-  placeholderCardLarge: { background: 'linear-gradient(135deg, #e8e8e8, #f5f5f5)', borderRadius: '24px', minHeight: '280px' },
   
   loadingContainer: {
     display: 'flex', flexDirection: 'column' as const, alignItems: 'center',

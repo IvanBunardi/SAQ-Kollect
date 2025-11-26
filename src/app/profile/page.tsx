@@ -446,9 +446,7 @@ export default function ProfilePage() {
                 <button style={styles.btnSecondary} onClick={() => router.push('/settings')}>
                   Settings
                 </button>
-                <button style={styles.btnPrimary} onClick={() => router.push('/hire-campaign')}>
-                  Hire for Campaign
-                </button>
+               
               </>
             ) : (
               <>

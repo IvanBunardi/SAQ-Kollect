@@ -410,7 +410,7 @@ export default function ProfilePage() {
               
               {userProfile?.bio && <p style={styles.profileBio}>{userProfile.bio}</p>}
               
-              {/* ✅ FOLLOW/UNFOLLOW & MESSAGE BUTTON */}
+              {/* ✅ FOLLOW/UNFOLLOW, MESSAGE & HIRE BUTTON */}
               {!isOwnProfile && (
                 <div style={{marginTop: '20px', display: 'flex', gap: '12px'}}>
                   <button
@@ -430,6 +430,13 @@ export default function ProfilePage() {
                     disabled={followLoading}
                   >
                     {followLoading ? 'Loading...' : (isFollowing ? 'Unfollow' : 'Follow')}
+                  </button>
+                  
+                  <button
+                    style={styles.hireBtn}
+                    onClick={() => router.push(`/hire-campaign?target=${username}`)}
+                  >
+                    Hire for Campaign
                   </button>
                   
                   <button
@@ -833,5 +840,21 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: 'all 0.2s ease',
     color: '#666',
     fontSize: '14px',
+  },
+
+  // ✅ STYLE BARU UNTUK "Hire for Campaign"
+  hireBtn: {
+    padding: '10px 24px',
+    background: '#e357a3',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 };

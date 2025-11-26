@@ -458,6 +458,8 @@ export default function UserProfile({ username }: { username: string }) {
                 <button style={styles.btnSecondary as any} onClick={() => router.push(`/messages/compose?to=${userData?.username || ""}`)}>
                   Message
                 </button>
+                
+                
               </div>
             </div>
           </div>

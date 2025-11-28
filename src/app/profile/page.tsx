@@ -635,19 +635,9 @@ export default function ProfilePage() {
           <div style={styles.actionButtons}>
             {!isEditing ? (
               <>
-<<<<<<< HEAD
-                <button style={styles.btnSecondary} onClick={handleEditClick}>
-                  Edit Profile
-                </button>
-                <button style={styles.btnSecondary} onClick={() => router.push('/settings')}>
-                  Settings
-                </button>
-               
-=======
                 <button style={styles.btnSecondary} onClick={handleEditClick}>Edit Profile</button>
                 <button style={styles.btnSecondary} onClick={() => router.push('/settings')}>Settings</button>
                 <button style={styles.btnPrimary} onClick={() => router.push('/hire-campaign')}>Hire for Campaign</button>
->>>>>>> e951f174106a5e9c920108f2a61148f896bb311e
               </>
             ) : (
               <>

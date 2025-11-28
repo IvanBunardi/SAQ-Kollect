@@ -14,14 +14,19 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    lowercase: true
+    lowercase: true,
+    trim: true
   },
   password: {
     type: String,
     required: true,
     select: false
   },
-  fullname: String,
+  fullname: {
+    type: String,
+    required: true,
+    trim: true
+  },
   bio: String,
   website: String,
   profilePhoto: String,
@@ -35,7 +40,8 @@ const userSchema = new mongoose.Schema({
   accountType: {
     type: String,
     enum: ['kol', 'brand'],
-    required: true
+    required: false,
+    default: 'kol'
   },
 
   // Company info (for brand)
@@ -103,34 +109,36 @@ const userSchema = new mongoose.Schema({
   isVerified: {
     type: Boolean,
     default: false
-  },
-
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-
-  updatedAt: {
-    type: Date,
-    default: Date.now
   }
 }, {
   timestamps: true,
-  strictPopulate: false  // ✅ PENTING untuk populate path validation
+  strictPopulate: false
 });
 
-// Hash password before save
+// ✅ Hash password before save (ONLY place where hashing happens)
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+  // Skip if password not modified
+  if (!this.isModified('password')) {
+    return next();
+  }
   
   try {
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (err) {
     next(err);
   }
 });
+
+// ✅ Method to compare password
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (err) {
+    throw new Error('Password comparison failed');
+  }
+};
 
 // Indexes untuk performance
 userSchema.index({ username: 1 });
